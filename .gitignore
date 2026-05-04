@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+
+# Virtual environment
+venv/
+.env
+.venv/
+
+# PyInstaller build output
+build/
+dist/
+
+# IDE
+.vscode/
+.idea/
+
+# Trained model weights (large binary files)
+Models/SEAMaP-Binary-Full/
+Models/SEAMaP-Binary-Full-6/
+Models/SEAMaP-Multi-class-100/
+Models/SEAMaP-Multi-class-100-1/
+
+# Retraining datasets (large image collections)
+Models/Retraining/original_datasets/
+
+# Evaluation artifacts
+Models/evaluation_output/
+Models/retrainingImages/
+
+# User databases and runtime-generated data
+UI/main_database.db
+UI/retrain_images.db
+UI/retrainingImages/
+UI/retraining_data/
+UI/user_settings.json
+UI/widget_screenshot.png
+
+# Detectron2 build artifacts (keep source, ignore compiled)
+detectron2/build/
+detectron2/detectron2/**/*.so
+detectron2/detectron2/**/*.pyd
+detectron2/*.egg-info/
+
+# Misc
+*.log
+*.tmp
+Thumbs.db
+.DS_Store
