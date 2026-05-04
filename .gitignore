@@ -40,11 +40,8 @@ UI/retraining_data/
 UI/user_settings.json
 UI/widget_screenshot.png
 
-# Detectron2 build artifacts (keep source, ignore compiled)
-detectron2/build/
-detectron2/detectron2/**/*.so
-detectron2/detectron2/**/*.pyd
-detectron2/*.egg-info/
+# Detectron2 (clone separately: https://github.com/facebookresearch/detectron2)
+detectron2/
 
 # Misc
 *.log
