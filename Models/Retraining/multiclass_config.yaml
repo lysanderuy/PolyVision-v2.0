@@ -1,0 +1,26 @@
+MODEL:
+  WEIGHTS: "../Models/SEAMaP-Multi-class-100/faster_rcnn_R_50_FPN_3x"
+  # WEIGHTS: "../Models/SEAMaP-90%-Real-Multiclass/faster_rcnn_R_50_FPN_3x"
+  ROI_HEADS:
+    NUM_CLASSES: 4 # filament, film, fragment, nada
+    BATCH_SIZE_PER_IMAGE: 192
+
+OUTPUT_DIR: "../Models/SEAMaP-Multi-class-100/faster_rcnn_R_50_FPN_3x"
+# OUTPUT_DIR: "../Models/SEAMaP-90%-Real-Multiclass/faster_rcnn_R_50_FPN_3x"
+
+
+SOLVER:
+  IMS_PER_BATCH: 3
+  
+  # --- HYPERPARAMETERS ---
+  BASE_LR: 0.000015        
+  MAX_ITER: 1358            
+  STEPS: [918, 1289]        
+  
+  WEIGHT_DECAY: 0.000363       
+
+  # --- STANDARD SUPPORTING PARAMETERS ---
+  GAMMA: 0.1
+  WARMUP_FACTOR: 0.0018101553998244831
+  WARMUP_ITERS: 196
+  WARMUP_METHOD: "linear" 
