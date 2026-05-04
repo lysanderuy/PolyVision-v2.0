@@ -23,9 +23,14 @@ Key components:
 ## Repository structure
 
 - `UI/` – main application code and GUI modules
-- `detectron2/` – Detectron2 source for model inference and training support
 - `Models/` – training scripts, dataset tools, evaluation code, and experiments
 - `requirements.txt` – Python dependencies for the application
+- `build_requirements.txt` – additional dependencies required for building the executable
+- `build_exe.bat` – script to build the standalone executable via PyInstaller
+- `setup_build.bat` – environment setup script for the build process
+- `PolyVision.spec` / `UI/PolyVisionMain.spec` – PyInstaller spec files
+
+> **Note:** `detectron2/` is not included in this repository. It must be cloned separately — see Installation.
 
 ## Prerequisites
 
@@ -76,15 +81,25 @@ cd UI
 python PolyVisionMain.py
 ```
 
-## Model configuration
+## Model files
 
-The model path is configured in the application source. Example:
+Model weights are not included in this repository due to their size. The application resolves them automatically from the `Models/` directory at runtime.
 
-```python
-MODEL_PATH = "../SEAMaP-Binary-Full/faster_rcnn_R_50_FPN_3x/2025-05-30-13-16-04/model_final.pth"
+Expected layout after placing model files:
+
+```
+Models/
+  SEAMaP-Binary-Full/
+    faster_rcnn_R_50_FPN_3x/
+      <timestamp>/
+        model_final.pth
+  SEAMaP-Multi-class-100/
+    faster_rcnn_R_50_FPN_3x/
+      <timestamp>/
+        model_final.pth
 ```
 
-Large model files are stored externally and are not included in this repository.
+Obtain the model files from the project's external storage and place them in the structure above before running the application.
 
 ## Notes
 
