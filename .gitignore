@@ -39,6 +39,18 @@ UI/retrainingImages/
 UI/retraining_data/
 UI/user_settings.json
 UI/widget_screenshot.png
+UI/PolyVisionMain.exe
+
+# Dev/test scratch folders
+UI/test/
+UI/testcase/
+UI/Vince/
+UI/piols/
+UI/snappy/
+
+# Generated/misc files
+Models/visualization.jpg
+Models/codes_used.txt
 
 # Detectron2 (clone separately: https://github.com/facebookresearch/detectron2)
 detectron2/
