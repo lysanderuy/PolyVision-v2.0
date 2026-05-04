@@ -1,0 +1,153 @@
+# MULTICLASS MODEL ACCURACY CALCULATION TEMPLATE  
+# PolyVision Microplastic Detection System
+# Test Date: ________________
+
+## MODEL INFORMATION
+Model Type: Multiclass Classification
+Classes: 4 classes (Microplastics, Filament, Film, Fragment)
+Test Images: 10 images from your /images/ folder
+
+## CLASS DEFINITIONS:
+- **Class 0**: Microplastics (general)
+- **Class 1**: Filament (fiber-like microplastics)
+- **Class 2**: Film (sheet-like microplastics) 
+- **Class 3**: Fragment (irregular pieces)
+
+## MANUAL DATA COLLECTION WORKSHEET
+
+### STEP 1: For Each Image, Count Objects by Class
+
+| Image Name | Ground Truth Classes | Model Predictions | Correct Matches by Class |
+|------------|---------------------|-------------------|-------------------------|
+|            | MP | Fil | Flm | Fra | MP | Fil | Flm | Fra | MP | Fil | Flm | Fra |
+| 1.jpg | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ |
+| 2.jpg | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ |
+| 3.jpg | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ |
+| 4.jpg | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ |
+| 5.jpg | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ |
+| img080 | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ |
+| img081 | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ |
+| img088 | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ |
+| img244 | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ |
+| img422 | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ |
+| **TOTALS** | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ | ___ |
+
+### STEP 2: Create Confusion Matrix
+
+Fill in this confusion matrix with your TOTAL counts across all 10 images:
+
+```
+                           PREDICTED
+ACTUAL          Microplastic  Filament   Film    Fragment  | Total Actual
+Microplastic         ___       ___      ___       ___     |     ___
+Filament             ___       ___      ___       ___     |     ___  
+Film                 ___       ___      ___       ___     |     ___
+Fragment             ___       ___      ___       ___     |     ___
+                 -----------------------------------------------
+Total Predicted      ___       ___      ___       ___     |     ___
+```
+
+### STEP 3: Calculate Overall Accuracy
+
+**Overall Accuracy = (Sum of Diagonal Elements) / (Total Objects) × 100**
+
+Diagonal Sum = _____ + _____ + _____ + _____ = _____
+Total Objects = _____
+Overall Accuracy = _____ / _____ × 100 = _____%
+
+### STEP 4: Calculate Per-Class Metrics
+
+#### Microplastics (Class 0):
+- True Positives: _____ (correctly identified microplastics)
+- False Positives: _____ (wrongly identified as microplastics)
+- False Negatives: _____ (missed microplastics)
+- Precision = _____ / (_____ + _____) × 100 = _____%
+- Recall = _____ / (_____ + _____) × 100 = _____%
+- F1-Score = 2 × (_____ × _____) / (_____ + _____) = _____%
+
+#### Filament (Class 1):
+- True Positives: _____ 
+- False Positives: _____
+- False Negatives: _____
+- Precision = _____ / (_____ + _____) × 100 = _____%
+- Recall = _____ / (_____ + _____) × 100 = _____%
+- F1-Score = 2 × (_____ × _____) / (_____ + _____) = _____%
+
+#### Film (Class 2):
+- True Positives: _____
+- False Positives: _____
+- False Negatives: _____
+- Precision = _____ / (_____ + _____) × 100 = _____%
+- Recall = _____ / (_____ + _____) × 100 = _____%
+- F1-Score = 2 × (_____ × _____) / (_____ + _____) = _____%
+
+#### Fragment (Class 3):
+- True Positives: _____
+- False Positives: _____
+- False Negatives: _____
+- Precision = _____ / (_____ + _____) × 100 = _____%
+- Recall = _____ / (_____ + _____) × 100 = _____%
+- F1-Score = 2 × (_____ × _____) / (_____ + _____) = _____%
+
+### STEP 5: Calculate Average Performance
+
+**Macro-Average Precision** = (_____ + _____ + _____ + _____) / 4 = _____%
+**Macro-Average Recall** = (_____ + _____ + _____ + _____) / 4 = _____%
+**Macro-Average F1-Score** = (_____ + _____ + _____ + _____) / 4 = _____%
+
+## FINAL RESULTS FOR THESIS
+
+### Multiclass Classification Performance (n=10 images):
+- **Overall Accuracy**: _____%
+- **Number of Classes**: 4
+- **Total Objects Tested**: _____
+
+### Per-Class Performance:
+- **Microplastics**: Precision=____%, Recall=____%, F1=____%
+- **Filament**: Precision=____%, Recall=____%, F1=____%
+- **Film**: Precision=____%, Recall=____%, F1=____%
+- **Fragment**: Precision=____%, Recall=____%, F1=____%
+
+### Average Performance Metrics:
+- **Macro-Avg Precision**: _____%
+- **Macro-Avg Recall**: _____%
+- **Macro-Avg F1-Score**: _____%
+
+### Class Distribution:
+- **Microplastics**: _____ objects (____% of total)
+- **Filament**: _____ objects (____% of total)
+- **Film**: _____ objects (____% of total)
+- **Fragment**: _____ objects (____% of total)
+
+### Performance Analysis:
+**Best Performing Class**: _____________ (highest F1-score: ____%)
+**Worst Performing Class**: _____________ (lowest F1-score: ____%)
+**Most Common Confusion**: _____________ mistaken for _____________
+
+## INTERPRETATION GUIDE:
+
+### Performance Levels:
+- **Excellent**: >95%
+- **Very Good**: 90-95%
+- **Good**: 80-90%
+- **Fair**: 70-80%
+- **Poor**: <70%
+
+### Your Model Classification:
+**Overall Performance**: _____________ 
+**Most Reliable Class**: _____________
+**Needs Improvement**: _____________
+
+## TIPS FOR MULTICLASS COUNTING:
+1. **Be consistent** with class definitions across all images
+2. **Document difficult cases** - some objects may be borderline between classes
+3. **Consider creating a reference guide** with example images of each class
+4. **Double-check confusing pairs** (e.g., small fragments vs. films)
+5. **Use the same overlap threshold** for all classes (typically >50%)
+
+## EXAMPLE CALCULATION:
+If you have these totals across 10 images:
+- Correct Microplastics: 18, Total Actual: 20, Total Predicted: 19
+- Precision = 18/19 = 94.7%
+- Recall = 18/20 = 90.0%
+- F1-Score = 2×(94.7×90.0)/(94.7+90.0) = 92.3%
