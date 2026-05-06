@@ -1296,10 +1296,13 @@ class Ui_MainWindow(QMainWindow):
         
         new_file_widget = NewFileUI()
         if new_file_widget.exec_() == QtWidgets.QDialog.Accepted and new_file_widget.file_name_edit.text() != '' and new_file_widget.location_edit.text() != '':
-            self.file_name = new_file_widget.file_name_edit.text()
+            self.file_name = os.path.join(
+                new_file_widget.current_directory.text(),
+                new_file_widget.file_name_edit.text()
+            )
             location = new_file_widget.location_edit.text()
             sampling_date = new_file_widget.sampling_date_edit.text()
-            self.placeValue.setText(self.file_name)        
+            self.placeValue.setText(new_file_widget.file_name_edit.text())
             self.locationValue.setText(location)
             self.dateValue.setText(sampling_date)
             self.selected_camera_index = new_file_widget.camera_combo_box.currentIndex()

@@ -279,10 +279,13 @@ class Ui_MainWindow(QWidget):
     def on_new_action(self):
         new_file_widget = NewFileUI()
         if new_file_widget.exec_() == QtWidgets.QDialog.Accepted:
-            self.file_name = new_file_widget.file_name_edit.text()
+            self.file_name = os.path.join(
+                new_file_widget.current_directory.text(),
+                new_file_widget.file_name_edit.text()
+            )
             location = new_file_widget.location_edit.text()
             sampling_date = new_file_widget.sampling_date_edit.text()
-            self.placeValue.setText(self.file_name)        
+            self.placeValue.setText(new_file_widget.file_name_edit.text())
             self.locationValue.setText(location)
             self.dateValue.setText(sampling_date)
             add_database_entry(self.file_name, f"{location}/microplastic.db", sampling_date)
