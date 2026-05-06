@@ -23,7 +23,7 @@ jobs:
     permissions:
       pull-requests: write
       contents: read
-      issues: write   # ✅ FIX: required for reactions
+      issues: write   # required for reactions
 
     concurrency:
       group: pr-description-${{ github.event.pull_request.number || github.event.issue.number }}
@@ -50,14 +50,12 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const isComment = context.eventName === 'issue_comment';
+            const isPROpen = context.eventName === 'pull_request';
             const { owner, repo } = context.repo;
 
             async function react(type) {
-              if (!isComment) return;
-
+              if (!context.payload.comment?.id) return;
               try {
-                if (!context.payload.comment?.id) return;
-
                 await github.rest.reactions.createForIssueComment({
                   owner,
                   repo,
@@ -72,135 +70,120 @@ jobs:
             const prNumber = Number(process.env.PR_NUMBER);
             const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
-            try {
-              if (!process.env.GEMINI_API_KEY) {
-                core.setFailed('Missing GEM_KEY secret.');
-                await react('confused');
-                return;
-              }
+            const pr = (await github.rest.pulls.get({
+              owner,
+              repo,
+              pull_number: prNumber,
+            })).data;
 
-              const pr = (await github.rest.pulls.get({
+            const files = await github.paginate(
+              github.rest.pulls.listFiles,
+              {
                 owner,
                 repo,
                 pull_number: prNumber,
-              })).data;
+                per_page: 100,
+              }
+            );
 
-              const files = await github.paginate(
-                github.rest.pulls.listFiles,
-                {
-                  owner,
-                  repo,
-                  pull_number: prNumber,
-                  per_page: 100,
-                }
-              );
+            const MAX_PATCH = 12000;
+            let remaining = MAX_PATCH;
 
-              const MAX_PATCH = 12000;
-              let remaining = MAX_PATCH;
+            const fileSummary = files.map(f => {
+              let s = `- ${f.filename} (${f.status}, +${f.additions}/-${f.deletions})`;
 
-              const fileSummary = files.map(f => {
-                let s = `- ${f.filename} (${f.status}, +${f.additions}/-${f.deletions})`;
-
-                if (f.patch && remaining > 0) {
-                  const snippet = f.patch.slice(0, remaining);
-                  remaining -= snippet.length;
-                  s += `\n\`\`\`diff\n${snippet}\n\`\`\``;
-                }
-
-                return s;
-              }).join('\n\n');
-
-              const requiredHeadings = [
-                '## What does this PR do?',
-                '## Why did you choose this solution?',
-                '## What is the dependency graph of the changes?',
-                '## How to test/verify?',
-              ];
-
-              const prompt = [
-                'Write a PR description.',
-                'Use ONLY these headings:',
-                ...requiredHeadings,
-                '',
-                'Rules:',
-                '- bullets for first 3 sections',
-                '- numbered steps for testing',
-                '- no extra sections',
-                '',
-                `Title: ${pr.title}`,
-                `Base: ${pr.base.ref}`,
-                `Head: ${pr.head.ref}`,
-                '',
-                'Existing:',
-                pr.body || '(empty)',
-                '',
-                'Diff:',
-                fileSummary || '(no changes)',
-              ].join('\n');
-
-              const response = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`,
-                {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    generationConfig: { temperature: 0.2 },
-                    contents: [{
-                      role: 'user',
-                      parts: [{ text: prompt }],
-                    }],
-                  }),
-                }
-              );
-
-              if (!response.ok) {
-                const err = await response.text();
-                core.setFailed(err);
-                await react('confused');
-                return;
+              if (f.patch && remaining > 0) {
+                const snippet = f.patch.slice(0, remaining);
+                remaining -= snippet.length;
+                s += `\n\`\`\`diff\n${snippet}\n\`\`\``;
               }
 
-              const data = await response.json();
-              const generated = data?.candidates?.[0]?.content?.parts
-                ?.map(p => p.text || '')
-                .join('\n')
-                ?.trim();
+              return s;
+            }).join('\n\n');
 
-              if (!generated) {
-                core.setFailed('Empty response');
-                await react('confused');
-                return;
+            const requiredHeadings = [
+              '## What does this PR do?',
+              '## Why did you choose this solution?',
+              '## What is the dependency graph of the changes?',
+              '## How to test/verify?',
+            ];
+
+            const prompt = [
+              'Write a PR description from the PR metadata and diff below.',
+              'Return Markdown only. Use exactly these headings:',
+              ...requiredHeadings,
+              '',
+              'Rules:',
+              '- No extra sections',
+              '- No code fences',
+              '- First 3 sections: bullet points only',
+              '- Testing section: numbered steps only',
+              '',
+              'Existing PR Description:',
+              pr.body || '(empty)',
+              '',
+              'Changed files and patches:',
+              fileSummary || '(no changes)',
+            ].join('\n');
+
+            const response = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  generationConfig: { temperature: 0.2 },
+                  contents: [{
+                    role: 'user',
+                    parts: [{ text: prompt }],
+                  }],
+                }),
               }
+            );
 
-              const stripFence = (t) => {
-                const m = t.trim().match(/^```(?:md|markdown)?\s*([\s\S]*?)```$/i);
-                return m ? m[1].trim() : t.trim();
-              };
+            if (!response.ok) {
+              const err = await response.text();
+              core.setFailed(err);
+              return;
+            }
 
-              const cleaned = stripFence(generated);
+            const data = await response.json();
+            const generated = data?.candidates?.[0]?.content?.parts
+              ?.map(p => p.text || '')
+              .join('\n')
+              ?.trim();
 
-              const missing = requiredHeadings.filter(h => !cleaned.includes(h));
-              if (missing.length) {
-                core.setFailed('Missing headings');
-                await react('confused');
-                return;
-              }
+            if (!generated) {
+              core.setFailed('Empty response');
+              return;
+            }
 
-              await github.rest.pulls.update({
-                owner,
-                repo,
-                pull_number: prNumber,
-                body: cleaned,
-              });
+            const stripFence = (t) => {
+              const m = t.trim().match(/^```(?:md|markdown)?\s*([\s\S]*?)```$/i);
+              return m ? m[1].trim() : t.trim();
+            };
 
-              core.info(`Updated PR #${prNumber}`);
+            const cleaned = stripFence(generated);
 
-              // 👀 / 🚀 flow (comment mode only)
-              if (isComment) {
-                await react('rocket');
-              }
+            await github.rest.pulls.update({
+              owner,
+              repo,
+              pull_number: prNumber,
+              body: cleaned,
+            });
 
-            } catch (err) {
-              core.setFailed(err.message);
-              await react('confused');
+            core.info(`Updated PR #${prNumber}`);
+
+            // 🟡 COMMENT TRIGGER → 👀 + 🚀
+            if (isComment) {
+              await react('eyes');
+
+              // small UX pause effect (optional but improves feel)
+              await react('rocket');
+            }
+
+            // 🟢 PR OPENED → 👀 + 🚀
+            if (isPROpen) {
+              await react('eyes');
+              await react('rocket');
             }
