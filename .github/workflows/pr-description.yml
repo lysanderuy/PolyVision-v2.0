@@ -8,16 +8,7 @@ on:
 
 jobs:
   describe_pr:
-    if: >
-      github.event.sender.type != 'Bot' &&
-      (
-        github.event_name == 'pull_request' ||
-        (
-          github.event_name == 'issue_comment' &&
-          github.event.issue.pull_request &&
-          startsWith(toLower(github.event.comment.body), 'palihug')
-        )
-      )
+    if: github.event.sender.type != 'Bot'
 
     runs-on: ubuntu-latest
 
@@ -50,21 +41,33 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const isComment = context.eventName === 'issue_comment';
-
             const { owner, repo } = context.repo;
             const prNumber = Number(process.env.PR_NUMBER);
             const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
-            const target = isComment
-              ? { type: 'comment', id: context.payload.comment?.id }
+            const isPR = context.eventName === 'pull_request';
+
+            const isPalihugComment =
+              context.eventName === 'issue_comment' &&
+              context.payload.issue?.pull_request &&
+              (context.payload.comment?.body || '')
+                .trim()
+                .toLowerCase()
+                .startsWith('palihug');
+
+            // ❌ Hard stop if not a valid trigger
+            if (!isPR && !isPalihugComment) {
+              core.info('Skipping: not a palihug trigger or PR event');
+              return;
+            }
+
+            const target = isPalihugComment
+              ? { type: 'comment', id: context.payload.comment.id }
               : { type: 'issue', id: prNumber };
 
             async function react(type) {
               try {
                 if (target.type === 'comment') {
-                  if (!target.id) return;
-
                   await github.rest.reactions.createForIssueComment({
                     owner,
                     repo,
@@ -84,7 +87,6 @@ jobs:
               }
             }
 
-            // 👀 START
             await react('eyes');
 
             const pr = (await github.rest.pulls.get({
@@ -191,5 +193,4 @@ jobs:
 
             core.info(`Updated PR #${prNumber}`);
 
-            // 🚀 DONE
             await react('rocket');
