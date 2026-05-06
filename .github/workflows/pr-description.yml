@@ -3,22 +3,17 @@ name: Tandang Sora
 on:
   pull_request:
     types: [opened, reopened, ready_for_review, synchronize, edited]
-  issue_comment:
-    types: [created]
 
 jobs:
   describe_pr:
-    if: github.event.sender.type != 'Bot'
-
     runs-on: ubuntu-latest
 
     permissions:
       pull-requests: write
       contents: read
-      issues: write
 
     concurrency:
-      group: pr-description-${{ github.event.pull_request.number || github.event.issue.number }}
+      group: pr-description-${{ github.event.pull_request.number }}
       cancel-in-progress: true
 
     steps:
@@ -26,11 +21,7 @@ jobs:
         id: pr
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "issue_comment" ]; then
-            echo "number=${{ github.event.issue.number }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "number=${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
-          fi
+          echo "number=${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
 
       - name: Generate and update PR description
         uses: actions/github-script@v7
@@ -45,43 +36,14 @@ jobs:
             const prNumber = Number(process.env.PR_NUMBER);
             const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
-            const isPR = context.eventName === 'pull_request';
-
-            const isPalihugComment =
-              context.eventName === 'issue_comment' &&
-              context.payload.issue?.pull_request &&
-              (context.payload.comment?.body || '')
-                .trim()
-                .toLowerCase()
-                .startsWith('palihug');
-
-            // ❌ Hard stop if not a valid trigger
-            if (!isPR && !isPalihugComment) {
-              core.info('Skipping: not a palihug trigger or PR event');
-              return;
-            }
-
-            const target = isPalihugComment
-              ? { type: 'comment', id: context.payload.comment.id }
-              : { type: 'issue', id: prNumber };
-
             async function react(type) {
               try {
-                if (target.type === 'comment') {
-                  await github.rest.reactions.createForIssueComment({
-                    owner,
-                    repo,
-                    comment_id: target.id,
-                    content: type,
-                  });
-                } else {
-                  await github.rest.reactions.createForIssue({
-                    owner,
-                    repo,
-                    issue_number: target.id,
-                    content: type,
-                  });
-                }
+                await github.rest.reactions.createForIssue({
+                  owner,
+                  repo,
+                  issue_number: prNumber,
+                  content: type,
+                });
               } catch (e) {
                 core.info(`Reaction failed (${type}): ${e.message}`);
               }
@@ -131,10 +93,9 @@ jobs:
               'You are generating a GitHub Pull Request description.',
               '',
               'Use ONLY the provided changed files and diffs as source of truth.',
-              'Do NOT reference or assume any previous PR description.',
+              'Do NOT reference any previous PR description.',
               '',
-              'Return Markdown only.',
-              'Use exactly these headings:',
+              'Return Markdown only. Use exactly these headings:',
               ...requiredHeadings,
               '',
               'Rules:',
@@ -142,7 +103,6 @@ jobs:
               '- No code fences',
               '- First 3 sections: bullet points only',
               '- Testing section: numbered steps only',
-              '- Be precise and strictly based on code changes',
               '',
               'Changed files and patches:',
               fileSummary || '(no changes)',
