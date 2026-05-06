@@ -81,11 +81,59 @@ cd UI
 python PolyVisionMain.py
 ```
 
-## Model files
+## Model files and assets
 
-Model weights are not included in this repository due to their size. The application resolves them automatically from the `Models/` directory at runtime.
+Large files (model weights, datasets, evaluation outputs) are not included in this repository due to their size. The application resolves them automatically from the `Models/` directory at runtime.
 
-Expected layout after placing model files:
+### Assets to download
+
+The following files should be obtained from your project's external storage (Google Drive, etc.):
+
+| Path | Size | Purpose |
+|------|------|---------|
+| `Models/SEAMaP-Binary-Full/` | Large | Pre-trained binary classification model |
+| `Models/SEAMaP-Binary-Full-6/` | Large | Binary model variant |
+| `Models/SEAMaP-Multi-class-100/` | Large | Pre-trained multi-class model |
+| `Models/SEAMaP-Multi-class-100-1/` | Large | Multi-class model variant |
+| `Models/Retraining/original_datasets/` | Very Large | Baseline datasets for model retraining |
+
+### Automatic download (recommended)
+
+Use the provided `download_assets.py` script to automatically download all shared folders from Google Drive:
+
+1. For each shared folder, get the folder ID from the Google Drive URL:
+   - Open the shared folder
+   - Copy the URL: `https://drive.google.com/drive/folders/FOLDER_ID`
+   - Extract the `FOLDER_ID` part
+
+2. Edit `assets_config.json` and replace the placeholder folder IDs:
+   ```json
+   {
+     "assets": {
+       "Models/SEAMaP-Binary-Full": {
+         "folder_url": "https://drive.google.com/drive/folders/1ABC123DEF...",
+         "description": "Binary microplastics detection model (main)"
+       },
+       ...
+     }
+   }
+   ```
+
+3. Run the script:
+   ```powershell
+   python download_assets.py
+   ```
+
+   Or download specific assets:
+   ```powershell
+   python download_assets.py Models/SEAMaP-Binary-Full
+   ```
+
+The script will automatically download and organize all folders into the correct directory structure.
+
+### Manual setup
+
+Alternatively, obtain the model files from your external storage and place them manually in the expected structure:
 
 ```
 Models/
@@ -98,8 +146,6 @@ Models/
       <timestamp>/
         model_final.pth
 ```
-
-Obtain the model files from the project's external storage and place them in the structure above before running the application.
 
 ## Notes
 

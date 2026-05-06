@@ -29,28 +29,19 @@ Models/SEAMaP-Multi-class-100-1/
 Models/Retraining/original_datasets/
 
 # Evaluation artifacts
-Models/evaluation_output/
-Models/retrainingImages/
+Models/dev/evaluation_output/
 
 # User databases and runtime-generated data
 UI/main_database.db
 UI/retrain_images.db
 UI/retrainingImages/
-UI/retraining_data/
 UI/user_settings.json
 UI/widget_screenshot.png
 UI/PolyVisionMain.exe
 
-# Dev/test scratch folders
-UI/test/
-UI/testcase/
-UI/Vince/
-UI/piols/
-UI/snappy/
-
 # Generated/misc files
-Models/visualization.jpg
-Models/codes_used.txt
+Models/dev/visualization.jpg
+Models/dev/codes_used.txt
 
 # Detectron2 (clone separately: https://github.com/facebookresearch/detectron2)
 detectron2/
