@@ -128,8 +128,13 @@ jobs:
             ];
 
             const prompt = [
-              'Write a PR description from the PR metadata and diff below.',
-              'Return Markdown only. Use exactly these headings:',
+              'You are generating a GitHub Pull Request description.',
+              '',
+              'Use ONLY the provided changed files and diffs as source of truth.',
+              'Do NOT reference or assume any previous PR description.',
+              '',
+              'Return Markdown only.',
+              'Use exactly these headings:',
               ...requiredHeadings,
               '',
               'Rules:',
@@ -137,9 +142,7 @@ jobs:
               '- No code fences',
               '- First 3 sections: bullet points only',
               '- Testing section: numbered steps only',
-              '',
-              'Existing PR Description:',
-              pr.body || '(empty)',
+              '- Be precise and strictly based on code changes',
               '',
               'Changed files and patches:',
               fileSummary || '(no changes)',
