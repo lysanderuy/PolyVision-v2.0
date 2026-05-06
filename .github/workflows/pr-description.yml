@@ -51,24 +51,38 @@ jobs:
           script: |
             const isComment = context.eventName === 'issue_comment';
             const isPROpen = context.eventName === 'pull_request';
+
             const { owner, repo } = context.repo;
-
-            async function react(type) {
-              if (!context.payload.comment?.id) return;
-              try {
-                await github.rest.reactions.createForIssueComment({
-                  owner,
-                  repo,
-                  comment_id: context.payload.comment.id,
-                  content: type,
-                });
-              } catch (e) {
-                core.info(`Reaction failed: ${e.message}`);
-              }
-            }
-
             const prNumber = Number(process.env.PR_NUMBER);
             const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+
+            const target = isComment
+              ? { type: 'comment', id: context.payload.comment?.id }
+              : { type: 'issue', id: prNumber };
+
+            async function react(type) {
+              try {
+                if (target.type === 'comment') {
+                  if (!target.id) return;
+
+                  await github.rest.reactions.createForIssueComment({
+                    owner,
+                    repo,
+                    comment_id: target.id,
+                    content: type,
+                  });
+                } else {
+                  await github.rest.reactions.createForIssue({
+                    owner,
+                    repo,
+                    issue_number: target.id,
+                    content: type,
+                  });
+                }
+              } catch (e) {
+                core.info(`Reaction failed (${type}): ${e.message}`);
+              }
+            }
 
             const pr = (await github.rest.pulls.get({
               owner,
@@ -85,6 +99,9 @@ jobs:
                 per_page: 100,
               }
             );
+
+            // 👀 BOT START (seen)
+            await react('eyes');
 
             const MAX_PATCH = 12000;
             let remaining = MAX_PATCH;
@@ -174,16 +191,5 @@ jobs:
 
             core.info(`Updated PR #${prNumber}`);
 
-            // 🟡 COMMENT TRIGGER → 👀 + 🚀
-            if (isComment) {
-              await react('eyes');
-
-              // small UX pause effect (optional but improves feel)
-              await react('rocket');
-            }
-
-            // 🟢 PR OPENED → 👀 + 🚀
-            if (isPROpen) {
-              await react('eyes');
-              await react('rocket');
-            }
+            // 🚀 BOT DONE
+            await react('rocket');
