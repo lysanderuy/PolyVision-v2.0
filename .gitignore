@@ -35,7 +35,6 @@ Models/dev/evaluation_output/
 UI/main_database.db
 UI/retrain_images.db
 UI/retrainingImages/
-UI/user_settings.json
 UI/widget_screenshot.png
 UI/PolyVisionMain.exe
 
