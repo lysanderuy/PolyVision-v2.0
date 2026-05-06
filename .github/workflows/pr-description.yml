@@ -11,10 +11,11 @@ jobs:
     if: >
       github.event.sender.type != 'Bot' &&
       (
-        github.event_name != 'issue_comment' ||
+        github.event_name == 'pull_request' ||
         (
+          github.event_name == 'issue_comment' &&
           github.event.issue.pull_request &&
-          startsWith((github.event.comment.body || ''), 'palihug')
+          startsWith(toLower(github.event.comment.body), 'palihug')
         )
       )
 
