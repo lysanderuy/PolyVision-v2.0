@@ -5,15 +5,15 @@
       "description": "Binary model"
     },
     "Models/SEAMaP-Binary-Full-6": {
-      "folder_url": "https://drive.google.com/drive/folders/18-ydiEGgVGxknbC-n17hA8Rug27zQPfl?usp=drive_link",
+      "folder_url": "https://drive.google.com/drive/folders/18-ydiEGgVGxknbC-n17hA8Rug27zQPfl?usp=sharing",
       "description": "Binary microplastics dataset"
     },
     "Models/SEAMaP-Multi-class-100": {
-      "folder_url": "https://drive.google.com/drive/folders/1JVu4Cxp1UewMmJJE-W9ZkP_UxqM50Oiw?usp=drive_link",
+      "folder_url": "https://drive.google.com/drive/folders/1JVu4Cxp1UewMmJJE-W9ZkP_UxqM50Oiw?usp=sharing",
       "description": "Multi-class model"
     },
     "Models/SEAMaP-Multi-class-100-1": {
-      "folder_url": "https://drive.google.com/drive/folders/1CnCvI0_CLHc1zcSsb7d0etXupM0PsNJn?usp=drive_link",
+      "folder_url": "https://drive.google.com/drive/folders/1CnCvI0_CLHc1zcSsb7d0etXupM0PsNJn?usp=sharing",
       "description": "Multi-class microplastic dataset"
     }
   }
