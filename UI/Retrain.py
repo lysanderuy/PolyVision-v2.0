@@ -26,15 +26,18 @@ from app_paths import models_path, storage_path, user_settings_path, resource_pa
 
 BASE_OUTPUT_DIRECTORY = models_path()
 
-
-
-def get_retraining_data():
+def get_retraining_data(model_type_filter=None):
     db_path = storage_path('retrain_images.db')
     if not os.path.exists(db_path): return []
     try:
         connection = sqlite3.connect(db_path)
         c = connection.cursor()
-        c.execute("SELECT image_name, is_microplastic, bounding_box FROM database_list ORDER BY rowid DESC")
+        if model_type_filter == 'Multiclass':
+            # Multiclass retraining only uses Multiclass-tagged images
+            c.execute("SELECT image_name, is_microplastic, bounding_box, model_type FROM database_list WHERE model_type = 'Multiclass' ORDER BY rowid DESC")
+        else:
+            # Binary retraining uses ALL images (Binary + Multiclass)
+            c.execute("SELECT image_name, is_microplastic, bounding_box, model_type FROM database_list ORDER BY rowid DESC")
         data = c.fetchall()
         connection.close()
         return data
@@ -53,6 +56,10 @@ def import_coco_data(image_dir, json_path, progress_callback):
     
     with open(json_path, 'r') as f:
         coco_data = json.load(f)
+
+    # Determine model type from the categories array — more than 2 categories means Multiclass
+    # This avoids the class_id=1 ambiguity (Filament in Multiclass vs Microplastic in Binary)
+    file_model_type = 'Multiclass' if len(coco_data.get('categories', [])) > 2 else 'Binary'
 
     images_map = {img['id']: img for img in coco_data['images']}
     annotations_by_image = {}
@@ -88,7 +95,7 @@ def import_coco_data(image_dir, json_path, progress_callback):
         
         is_mp = False
         bounding_boxes_for_db = []
-        
+
         img_id = image_info['id']
         if img_id in annotations_by_image:
             is_mp = True # If there are annotations, it's a positive sample
@@ -103,8 +110,8 @@ def import_coco_data(image_dir, json_path, progress_callback):
                 bounding_boxes_for_db.append(db_bbox)
 
         bounding_box_str = json.dumps(bounding_boxes_for_db)
-        cursor.execute("INSERT INTO database_list (image_name, is_microplastic, bounding_box) VALUES (?, ?, ?)",
-                      (new_image_name, int(is_mp), bounding_box_str))
+        cursor.execute("INSERT INTO database_list (image_name, is_microplastic, bounding_box, model_type) VALUES (?, ?, ?, ?)",
+                      (new_image_name, int(is_mp), bounding_box_str, file_model_type))
         
         imported_count += 1
 
@@ -340,7 +347,7 @@ class RetrainingThread(QThread):
         
         # --- 1. Load New Data from DB ---
         self.log_update.emit("Loading new data from retrain_images.db...")
-        new_data_from_db = get_retraining_data()
+        new_data_from_db = get_retraining_data(self.model_type)
         num_new_samples = len(new_data_from_db)
         self.log_update.emit(f"Found {num_new_samples} new data points.")
 
@@ -430,7 +437,7 @@ class RetrainingThread(QThread):
         image_id_offset = max_image_id + 1
         annotation_id_offset = max_ann_id + 1
         new_annotations_count = 0
-        for i, (image_name, is_mp, bbox_str) in enumerate(new_data_from_db):
+        for i, (image_name, is_mp, bbox_str, _) in enumerate(new_data_from_db):
             image_path = models_path("retrainingImages", image_name)
             if not os.path.exists(image_path):
                 self.log_update.emit(f"Warning: Image file not found, skipping: {image_path}")
@@ -733,7 +740,7 @@ class RetrainUI(QDialog):
         self.cancel_button = QPushButton("Cancel")
         self.close_button = QPushButton("Close")
         # self.reset_button.hide()
-        self.cancel_button.setEnabled(True)
+        self.cancel_button.setEnabled(False)
         self.import_button.setEnabled(True)         #set to True if you use it
         button_layout.addWidget(self.import_button, alignment=Qt.AlignLeft)
         button_layout.addWidget(self.reset_button, alignment=Qt.AlignLeft)
@@ -982,12 +989,16 @@ class RetrainUI(QDialog):
             # User clicked "Yes", so we deploy the new model
             self.log_view.append("\n--- User approved deployment. Deploying new model... ---")
             self.deploy_model(result.get('challenger_path'))
+            self.promote_to_base_dataset()
+            self.cleanup_retraining_data()
             self.finishedTraining()  # Reset UI to idle state after deployment
         else:
             # User clicked "No" - reject and clean up the challenger model
             self.log_view.append("\n--- User rejected deployment. Cleaning up new model... ---")
             self.reject_model(result.get('challenger_path'))
             QMessageBox.information(self, "Deployment Rejected", "The new model has been removed and the current model will be retained.")
+            self.promote_to_base_dataset()
+            self.cleanup_retraining_data()
             self.finishedTraining()  # Reset UI to idle state after rejection
 
     def finishedTraining(self):
@@ -1011,7 +1022,147 @@ class RetrainUI(QDialog):
         # Refresh data summary in case anything changed
         self.load_data_summary()
 
+    def promote_to_base_dataset(self):
+        """
+        Copies used retraining images into the base dataset train folder
+        and appends their annotations to _annotations.coco.json.
+        Called after both accept and reject.
+        Binary: promotes ALL images, downcasts all annotations to class_id = 1.
+        Multiclass: promotes only Multiclass-tagged images, uses original class_id.
+        """
+        self.log_view.append("\n--- Promoting new images to base dataset... ---")
 
+        if self.model_type == 'Binary':
+            base_train_dir = models_path("SEAMaP-Binary-Full-6", "train")
+            used_data = get_retraining_data()  # Binary uses ALL images
+        else:
+            base_train_dir = models_path("SEAMaP-Multi-class-100-1", "train")
+            used_data = get_retraining_data('Multiclass')  # Multiclass uses only Multiclass-tagged
+
+        if not used_data:
+            self.log_view.append("No new images to promote.")
+            return
+
+        annotation_path = os.path.join(base_train_dir, "_annotations.coco.json")
+        if not os.path.exists(annotation_path):
+            self.log_view.append(f"ERROR: Base annotation file not found at {annotation_path}. Skipping promotion.")
+            return
+
+        try:
+            with open(annotation_path, 'r') as f:
+                base_coco = json.load(f)
+
+            max_image_id = max([img['id'] for img in base_coco['images']], default=-1)
+            max_ann_id = max([ann['id'] for ann in base_coco['annotations']], default=-1)
+            image_id_offset = max_image_id + 1
+            ann_id_counter = max_ann_id + 1
+            promoted_count = 0
+
+            for i, (image_name, is_mp, bbox_str, _) in enumerate(used_data):
+                src_path = models_path("retrainingImages", image_name)
+                if not os.path.exists(src_path):
+                    self.log_view.append(f"Warning: Image not found, skipping: {image_name}")
+                    continue
+
+                # Copy image into base dataset train folder
+                dst_path = os.path.join(base_train_dir, image_name)
+                shutil.copy(src_path, dst_path)
+
+                # Read image dimensions
+                try:
+                    img_cv = cv2.imread(src_path)
+                    height, width = img_cv.shape[:2]
+                except Exception:
+                    self.log_view.append(f"Warning: Could not read dimensions for {image_name}. Skipping.")
+                    continue
+
+                new_image_id = image_id_offset + i
+                base_coco['images'].append({
+                    "id": new_image_id,
+                    "file_name": image_name,
+                    "height": height,
+                    "width": width
+                })
+
+                # Add annotations only if image has bounding boxes
+                if is_mp == 1 and bbox_str:
+                    try:
+                        bboxes_list = json.loads(bbox_str)
+                        for bbox_info in bboxes_list:
+                            x1, y1, x2, y2 = bbox_info['bbox']
+                            w, h = x2 - x1, y2 - y1
+                            # Binary: downcast all to class_id=1, Multiclass: use original
+                            category_id = 1 if self.model_type == 'Binary' else bbox_info['class_id']
+                            base_coco['annotations'].append({
+                                "id": ann_id_counter,
+                                "image_id": new_image_id,
+                                "category_id": category_id,
+                                "bbox": [x1, y1, w, h],
+                                "area": w * h,
+                                "iscrowd": 0
+                            })
+                            ann_id_counter += 1
+                    except (json.JSONDecodeError, TypeError):
+                        self.log_view.append(f"Warning: Could not decode bbox for {image_name}.")
+
+                promoted_count += 1
+
+            with open(annotation_path, 'w') as f:
+                json.dump(base_coco, f, indent=4)
+
+            self.log_view.append(f"--- Promoted {promoted_count} images to base dataset successfully. ---")
+
+        except Exception as e:
+            self.log_view.append(f"--- ERROR during base dataset promotion: {e} ---")
+
+    def cleanup_retraining_data(self):
+        """
+        Deletes used retraining images and their db records after promotion.
+        Binary: deletes ALL records and image files (both Binary and Multiclass were used).
+        Multiclass: deletes only Multiclass-tagged records and image files, Binary stays intact.
+        """
+        self.log_view.append("\n--- Cleaning up retraining data... ---")
+
+        db_path = storage_path('retrain_images.db')
+        img_dir = models_path("retrainingImages")
+
+        try:
+            if self.model_type == 'Binary':
+                # Delete ALL image files
+                if os.path.exists(img_dir):
+                    for f in os.listdir(img_dir):
+                        file_path = os.path.join(img_dir, f)
+                        if os.path.isfile(file_path):
+                            os.remove(file_path)
+                # Delete ALL records from db
+                if os.path.exists(db_path):
+                    connection = sqlite3.connect(db_path)
+                    c = connection.cursor()
+                    c.execute("DELETE FROM database_list")
+                    connection.commit()
+                    connection.close()
+                self.log_view.append("--- All retraining data cleared. Ready for fresh batch. ---")
+
+            else:  # Multiclass
+                if os.path.exists(db_path):
+                    connection = sqlite3.connect(db_path)
+                    c = connection.cursor()
+                    # Fetch Multiclass image names before deleting
+                    c.execute("SELECT image_name FROM database_list WHERE model_type = 'Multiclass'")
+                    multiclass_images = [row[0] for row in c.fetchall()]
+                    # Delete only Multiclass records
+                    c.execute("DELETE FROM database_list WHERE model_type = 'Multiclass'")
+                    connection.commit()
+                    connection.close()
+                    # Delete only Multiclass image files
+                    for image_name in multiclass_images:
+                        file_path = os.path.join(img_dir, image_name)
+                        if os.path.exists(file_path):
+                            os.remove(file_path)
+                self.log_view.append("--- Multiclass retraining data cleared. Binary images preserved. ---")
+
+        except Exception as e:
+            self.log_view.append(f"--- ERROR during cleanup: {e} ---")
 
     def deploy_model(self, challenger_model_path):
         """
