@@ -1,24 +1,20 @@
 {
   "assets": {
     "Models/SEAMaP-Binary-Full": {
-      "folder_url": "https://drive.google.com/drive/folders/YOUR_BINARY_FULL_FOLDER_ID",
-      "description": "Binary microplastics detection model (main)"
+      "folder_url": "https://drive.google.com/drive/folders/1OtdVc3XUKgaG_Ibl_-D35S0GSSHPX-0u?usp=sharing",
+      "description": "Binary model"
     },
     "Models/SEAMaP-Binary-Full-6": {
-      "folder_url": "https://drive.google.com/drive/folders/YOUR_BINARY_6_FOLDER_ID",
-      "description": "Binary microplastics detection model (variant)"
+      "folder_url": "https://drive.google.com/drive/folders/18-ydiEGgVGxknbC-n17hA8Rug27zQPfl?usp=drive_link",
+      "description": "Binary microplastics dataset"
     },
     "Models/SEAMaP-Multi-class-100": {
-      "folder_url": "https://drive.google.com/drive/folders/YOUR_MULTICLASS_FOLDER_ID",
-      "description": "Multi-class classification model (main)"
+      "folder_url": "https://drive.google.com/drive/folders/1JVu4Cxp1UewMmJJE-W9ZkP_UxqM50Oiw?usp=drive_link",
+      "description": "Multi-class model"
     },
     "Models/SEAMaP-Multi-class-100-1": {
-      "folder_url": "https://drive.google.com/drive/folders/YOUR_MULTICLASS_1_FOLDER_ID",
-      "description": "Multi-class classification model (variant)"
-    },
-    "Models/Retraining/original_datasets": {
-      "folder_url": "https://drive.google.com/drive/folders/YOUR_DATASETS_FOLDER_ID",
-      "description": "Original datasets for model retraining"
+      "folder_url": "https://drive.google.com/drive/folders/1CnCvI0_CLHc1zcSsb7d0etXupM0PsNJn?usp=drive_link",
+      "description": "Multi-class microplastic dataset"
     }
   }
 }
