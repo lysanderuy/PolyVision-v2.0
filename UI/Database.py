@@ -36,22 +36,29 @@ def create_retraining_database(database_name):
     c.execute("""CREATE TABLE IF NOT EXISTS database_list (
             image_name text,
             is_microplastic bool,
-            bounding_box text
+            bounding_box text,
+            model_type text
         )""")
+
+    # Migration: add model_type column if database existed before this schema update
+    # try:
+    #     c.execute("ALTER TABLE database_list ADD COLUMN model_type text DEFAULT 'Binary'")
+    # except:
+    #     pass  # Column already exists, nothing to do
 
     connection.commit()
     connection.close()
 
 
-def retrain_data(database_name, image_name, is_microplastic, bounding_box):
+def retrain_data(database_name, image_name, is_microplastic, bounding_box, model_type='Binary'):
     microplastics_db_path = os.path.join(database_name, 'retrain_images.db')
     connection = sqlite3.connect(microplastics_db_path)
     c = connection.cursor()
-    is_microplastic_send = int(is_microplastic) 
- 
-    c.execute("INSERT INTO database_list (image_name, is_microplastic, bounding_box) VALUES (?, ?, ?)",
-              (image_name, is_microplastic_send, bounding_box))
-    
+    is_microplastic_send = int(is_microplastic)
+
+    c.execute("INSERT INTO database_list (image_name, is_microplastic, bounding_box, model_type) VALUES (?, ?, ?, ?)",
+              (image_name, is_microplastic_send, bounding_box, model_type))
+
     connection.commit()
     connection.close()
 
