@@ -85,66 +85,27 @@ python PolyVisionMain.py
 
 Large files (model weights, datasets, evaluation outputs) are not included in this repository due to their size. The application resolves them automatically from the `Models/` directory at runtime.
 
-### Assets to download
-
-The following files should be obtained from your project's external storage (Google Drive, etc.):
-
-| Path | Size | Purpose |
-|------|------|---------|
-| `Models/SEAMaP-Binary-Full/` | Large | Pre-trained binary classification model |
-| `Models/SEAMaP-Binary-Full-6/` | Large | Binary model variant |
-| `Models/SEAMaP-Multi-class-100/` | Large | Pre-trained multi-class model |
-| `Models/SEAMaP-Multi-class-100-1/` | Large | Multi-class model variant |
-| `Models/Retraining/original_datasets/` | Very Large | Baseline datasets for model retraining |
-
-### Automatic download (recommended)
-
-Use the provided `download_assets.py` script to automatically download all shared folders from Google Drive:
-
-1. For each shared folder, get the folder ID from the Google Drive URL:
-   - Open the shared folder
-   - Copy the URL: `https://drive.google.com/drive/folders/FOLDER_ID`
-   - Extract the `FOLDER_ID` part
-
-2. Edit `assets_config.json` and replace the placeholder folder IDs:
-   ```json
-   {
-     "assets": {
-       "Models/SEAMaP-Binary-Full": {
-         "folder_url": "https://drive.google.com/drive/folders/1ABC123DEF...",
-         "description": "Binary microplastics detection model (main)"
-       },
-       ...
-     }
-   }
-   ```
-
-3. Run the script:
-   ```powershell
-   python download_assets.py
-   ```
-
-   Or download specific assets:
-   ```powershell
-   python download_assets.py Models/SEAMaP-Binary-Full
-   ```
-
-The script will automatically download and organize all folders into the correct directory structure.
-
 ### Manual setup
 
-Alternatively, obtain the model files from your external storage and place them manually in the expected structure:
+Download the model folders from this Google Drive parent folder:
+
+https://drive.google.com/drive/folders/1ZMB1I_3Cc35C7hiKsMExzhUH6xYldoSB?usp=drive_link
+
+Then place the following four folders directly inside `Models/`:
+
+- `Models/SEAMaP-Binary-Full`
+- `Models/SEAMaP-Binary-Full-6`
+- `Models/SEAMaP-Multi-class-100`
+- `Models/SEAMaP-Multi-class-100-1`
+
+The final layout should look like this:
 
 ```
 Models/
   SEAMaP-Binary-Full/
-    faster_rcnn_R_50_FPN_3x/
-      <timestamp>/
-        model_final.pth
+  SEAMaP-Binary-Full-6/
   SEAMaP-Multi-class-100/
-    faster_rcnn_R_50_FPN_3x/
-      <timestamp>/
-        model_final.pth
+  SEAMaP-Multi-class-100-1/
 ```
 
 ## Notes
