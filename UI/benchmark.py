@@ -4,6 +4,8 @@ import os
 import time 
 import argparse
 import json
+import sys
+from pathlib import Path
 import torch
 import detectron2
 from detectron2 import model_zoo 
@@ -12,6 +14,12 @@ from detectron2.engine import DefaultPredictor
 from detectron2.data.datasets import register_coco_instances
 from detectron2.data import DatasetCatalog, MetadataCatalog, build_detection_test_loader
 from detectron2.evaluation import COCOEvaluator, inference_on_dataset
+
+RETRAINING_DIR = Path(__file__).resolve().parents[1] / "Models" / "Retraining"
+if str(RETRAINING_DIR) not in sys.path:
+    sys.path.insert(0, str(RETRAINING_DIR))
+
+from gpu_diagnostics import diagnose_gpu_support, format_diagnostic_lines, select_training_device
 
 def main(args):
     print(f"--- Starting Benchmark for Model: {args.model_path} ---")
@@ -34,7 +42,11 @@ def main(args):
     # Configure the Model for Inference ---
     cfg = get_cfg()
     cfg.merge_from_file(detectron2.model_zoo.get_config_file("COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml"))
-    cfg.MODEL.DEVICE = "cpu"  
+    gpu_report = diagnose_gpu_support()
+    for line in format_diagnostic_lines(gpu_report):
+        print(line)
+    cfg.MODEL.DEVICE = select_training_device(gpu_report)
+    print(f"--- Benchmark device selected: {cfg.MODEL.DEVICE} ---")
     
     cfg.MODEL.WEIGHTS = args.model_path
     

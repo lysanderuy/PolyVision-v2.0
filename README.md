@@ -72,6 +72,37 @@ Key components:
    cd ..
    ```
 
+## GPU retraining support
+
+PolyVision automatically checks for NVIDIA CUDA support when retraining starts.
+If CUDA-capable PyTorch and Detectron2 are installed correctly, retraining and
+the post-training benchmark use the GPU. If CUDA is unavailable, PolyVision
+falls back to CPU and logs the reason.
+
+For source/venv installs, PolyVision can guide repair when NVIDIA hardware is
+detected but the Python ML stack is CPU-only or broken. The repair requires
+internet access and reinstalls PyTorch with CUDA 11.8 support:
+
+```powershell
+python -m pip install --upgrade --force-reinstall torch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 --index-url https://download.pytorch.org/whl/cu118
+python -m pip install -e detectron2
+python repair_gpu_env.py
+```
+
+You can also launch the guided repair script from the project root:
+
+```powershell
+.\repair_gpu_env.bat
+```
+
+Close PolyVision before continuing in the repair window, then restart PolyVision
+after repair completes. If a repair is interrupted, run `.\repair_gpu_env.bat`
+again from the project root; it is safe to rerun and writes details to
+`repair_gpu_env.log`.
+
+Packaged PyInstaller `.exe` builds cannot be repaired in place this way; they
+need a separate GPU-enabled build or an external managed environment.
+
 ## Running the application
 
 Start the main application from the `UI` directory:
