@@ -32,6 +32,12 @@ from detectron2.data import MetadataCatalog
 import sys
 import threading
 
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+if SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, SCRIPT_DIR)
+
+from gpu_diagnostics import diagnose_gpu_support, format_diagnostic_lines, select_training_device
+
 # Global seed configuration (edit this constant to reproduce a specific run)
 DEFAULT_TRAINING_SEED = 1337
 
@@ -204,7 +210,11 @@ def main(args):
     cfg.DATASETS.TEST = ()
     cfg.DATALOADER.NUM_WORKERS = 2
     cfg.INPUT.AUGMENTATIONS_ENABLED = args.use_augmentation
-    cfg.MODEL.DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+    gpu_report = diagnose_gpu_support()
+    for line in format_diagnostic_lines(gpu_report):
+        print(line)
+    cfg.MODEL.DEVICE = select_training_device(gpu_report)
+    print(f"--- Training device selected: {cfg.MODEL.DEVICE} ---")
     
     # CRITICAL: We DO NOT modify cfg.OUTPUT_DIR here. It is now fully controlled
     # by the orchestrator script (Retrain.py). We just ensure it exists.
