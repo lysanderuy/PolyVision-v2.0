@@ -11,6 +11,7 @@ import shutil
 import random
 import yaml
 import glob
+import subprocess
 from benchmark import main as benchmark_main
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
@@ -20,6 +21,13 @@ from Database import create_retraining_database
 from datetime import datetime
 from ComparisonDialog import ComparisonDialog
 from pathlib import Path
+
+RETRAINING_MODULE_DIR = Path(__file__).resolve().parents[1] / "Models" / "Retraining"
+if str(RETRAINING_MODULE_DIR) not in sys.path:
+    sys.path.insert(0, str(RETRAINING_MODULE_DIR))
+
+from gpu_diagnostics import diagnose_gpu_support, format_diagnostic_lines, should_offer_repair
+
 import cv2
 import time
 from app_paths import models_path, storage_path, user_settings_path, resource_path, app_storage_dir
@@ -536,6 +544,11 @@ class RetrainingThread(QThread):
         challenger_output_dir = None
 
         try:
+            gpu_report = diagnose_gpu_support()
+            for line in format_diagnostic_lines(gpu_report):
+                self.log_update.emit(line)
+            self.log_update.emit("")
+
             # --- STAGE 1: DATA PREPARATION ---
             self.log_update.emit("Stage 1/4: Preparing training data...")
             annotations_path = self.prepare_coco_annotations()
@@ -872,6 +885,74 @@ class RetrainUI(QDialog):
         self.setWindowTitle(f"Retrain Model ({self.model_type})")
         self.load_data_summary()
 
+    def launch_gpu_repair(self):
+        if getattr(sys, "frozen", False):
+            QMessageBox.warning(
+                self,
+                "GPU Repair Unavailable",
+                "Automatic GPU repair is only available for the source/venv release. "
+                "Packaged executable builds need a separate GPU-enabled build."
+            )
+            return
+
+        repair_script = Path(self.project_root) / "repair_gpu_env.bat"
+        if not repair_script.exists():
+            QMessageBox.critical(
+                self,
+                "GPU Repair Missing",
+                f"Repair script was not found:\n{repair_script}"
+            )
+            return
+
+        try:
+            subprocess.Popen(
+                ["cmd.exe", "/k", str(repair_script)],
+                cwd=self.project_root,
+                creationflags=getattr(subprocess, "CREATE_NEW_CONSOLE", 0),
+            )
+        except Exception as exc:
+            QMessageBox.critical(self, "GPU Repair Failed", f"Could not launch GPU repair:\n{exc}")
+            return
+
+        QMessageBox.information(
+            self,
+            "GPU Repair Started",
+            "A repair window has been opened.\n\n"
+            "Close PolyVision before continuing in that window, then restart PolyVision after repair completes."
+        )
+
+    def maybe_offer_gpu_repair(self):
+        report = diagnose_gpu_support()
+        if not should_offer_repair(report):
+            return True
+
+        message = "\n".join(format_diagnostic_lines(report))
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Warning)
+        box.setWindowTitle("GPU Support Repair Available")
+        box.setText(
+            "This machine appears to have NVIDIA GPU hardware, but PolyVision cannot use CUDA in this environment."
+        )
+        box.setInformativeText(
+            f"{message}\n\n"
+            "You can repair GPU support now, continue this retraining run on CPU, or cancel."
+        )
+        repair_button = box.addButton("Repair GPU Support", QMessageBox.AcceptRole)
+        continue_button = box.addButton("Continue on CPU", QMessageBox.DestructiveRole)
+        cancel_button = box.addButton(QMessageBox.Cancel)
+        box.setDefaultButton(repair_button)
+        box.exec_()
+
+        clicked = box.clickedButton()
+        if clicked == repair_button:
+            self.launch_gpu_repair()
+            return False
+        if clicked == continue_button:
+            return True
+        if clicked == cancel_button:
+            return False
+        return False
+
     # NEW: Slot to handle the start button click
     def start_retraining(self):
 
@@ -895,6 +976,9 @@ class RetrainUI(QDialog):
             # If the user clicks "No", we simply stop the process here.
             if warning_reply == QMessageBox.No:
                 return # Exit the function
+
+        if not self.maybe_offer_gpu_repair():
+            return
 
         reply = QMessageBox.question(self, 'Confirm Retraining', 
                                      "This will start the model retraining process, which can take a long time and consume significant computer resources. We recommend charging your device before proceeding.\n\nAre you sure you want to continue?",
