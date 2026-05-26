@@ -6,6 +6,7 @@ import json
 import sqlite3
 import argparse
 import importlib.util
+import logging
 import threading
 import shutil
 import random
@@ -26,13 +27,185 @@ RETRAINING_MODULE_DIR = Path(__file__).resolve().parents[1] / "Models" / "Retrai
 if str(RETRAINING_MODULE_DIR) not in sys.path:
     sys.path.insert(0, str(RETRAINING_MODULE_DIR))
 
-from gpu_diagnostics import diagnose_gpu_support, format_diagnostic_lines, should_offer_repair
+from gpu_diagnostics import (
+    CUDA_BROKEN,
+    GPU_READY,
+    HARDWARE_MISSING,
+    HARDWARE_PRESENT_SOFTWARE_MISSING,
+    diagnose_gpu_support,
+    format_diagnostic_lines,
+    should_offer_repair,
+)
 
 import cv2
 import time
 from app_paths import models_path, storage_path, user_settings_path, resource_path, app_storage_dir
 
 BASE_OUTPUT_DIRECTORY = models_path()
+
+RETRAIN_UI_STYLESHEET = """
+QDialog {
+    background: #eef1f4;
+    font-family: Segoe UI, Arial, sans-serif;
+}
+QGroupBox {
+    background: transparent;
+    border: 1px solid #c0c0c0;
+    border-radius: 5px;
+    margin-top: 10px;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    padding: 0 5px;
+}
+QPushButton {
+    color: #1f2933;
+    background: #ffffff;
+    border: 1px solid #b8c2cc;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-weight: 600;
+}
+QPushButton:hover {
+    background: #f1f7fb;
+    border-color: #0f5f9e;
+}
+QPushButton:pressed {
+    background: #e3edf4;
+}
+QPushButton:disabled {
+    color: #9aa5b1;
+    background: #eef1f4;
+    border-color: #d5dbe1;
+}
+QPushButton#footerButton {
+    padding: 6px 14px;
+}
+QPushButton#footerButton[buttonRole="danger"] {
+    color: #b42318;
+    background: #fff8f7;
+    border-color: #efb0aa;
+}
+QPushButton#footerButton[buttonRole="danger"]:hover {
+    background: #fff0ee;
+    border-color: #d92d20;
+}
+QPushButton#footerButton[buttonRole="warning"] {
+    color: #8a4b00;
+    background: #fff8e8;
+    border-color: #dfb76b;
+}
+QPushButton#footerButton[buttonRole="warning"]:hover {
+    background: #fff0c2;
+    border-color: #b7791f;
+}
+QPushButton#footerButton:disabled {
+    color: #9aa5b1;
+    background: #eef1f4;
+    border-color: #d5dbe1;
+}
+QProgressBar {
+    border: 1px solid #bfd0dc;
+    border-radius: 9px;
+    height: 18px;
+    background: #edf3f7;
+}
+QProgressBar::chunk {
+    border-radius: 8px;
+    background: #0f5f9e;
+}
+QTextEdit {
+    border: 1px solid #c0c0c0;
+    border-radius: 0px;
+    background: #ffffff;
+}
+#retrainSurface {
+    background: #f0f0f0;
+    border: 1px solid #c0c0c0;
+}
+#modelChoiceButton {
+    min-width: 120px;
+}
+#dashboardCard {
+    background: #ffffff;
+    border: 1px solid #d2d8de;
+    border-radius: 4px;
+}
+#dashboardTitle {
+    color: #2b3640;
+    font-weight: 700;
+}
+#dashboardLabel {
+    color: #52616f;
+}
+#dashboardValue {
+    color: #1f2933;
+    font-weight: 700;
+}
+#mainStatusPanel {
+    background: #f8fbfd;
+    border: 1px solid #bfd0dc;
+    border-left: 5px solid #0f5f9e;
+    border-radius: 7px;
+}
+#mainStatusPercent {
+    color: #0f5f9e;
+    font-size: 17pt;
+    font-weight: 800;
+}
+#mainStatusEta {
+    color: #405160;
+    font-weight: 700;
+}
+#mainStatusHealth {
+    color: #107c41;
+    background: #e1f4e9;
+    border: 1px solid #a8d8b8;
+    border-radius: 10px;
+    padding: 2px 9px;
+    font-weight: 700;
+}
+#mainStatusBottom {
+    color: #52616f;
+    font-weight: 600;
+}
+#highlightsPanel {
+    background: #ffffff;
+    border: 1px solid #c0c0c0;
+    border-radius: 4px;
+}
+#currentStep {
+    color: #17212b;
+    font-size: 12pt;
+    font-weight: 700;
+}
+#stepSummary {
+    color: #52616f;
+}
+#highlightCard {
+    background: #f8fafb;
+    border: 1px solid #d2d8de;
+    border-radius: 4px;
+}
+#highlightTitle {
+    color: #2b3640;
+    font-weight: 700;
+}
+#highlightItem_done {
+    color: #107c41;
+}
+#highlightItem_active {
+    color: #0f5f9e;
+    font-weight: 600;
+}
+#highlightItem_next {
+    color: #52616f;
+}
+#technicalLogToggle {
+    color: #405160;
+}
+"""
 
 def get_retraining_data(model_type_filter=None):
     db_path = storage_path('retrain_images.db')
@@ -142,8 +315,8 @@ class ImportThread(QThread):
 
 class _LineEmitter:
     """
-    Captures stdout from train.py running in-process and forwards each line
-    as Qt log/progress signals so the UI stays updated without a subprocess.
+    Captures train.py output and forwards each line as Qt log/progress signals
+    so the UI stays updated without a subprocess.
     """
     def __init__(self, log_fn, progress_fn=None, total_iters=0):
         self._log = log_fn
@@ -173,6 +346,9 @@ class _LineEmitter:
 
     def fileno(self):
         return sys.__stdout__.fileno()
+
+    def isatty(self):
+        return False
 
 
 # NEW: The QThread class for handling the background process
@@ -236,6 +412,30 @@ class RetrainingThread(QThread):
             self.log_update.emit(f"Warning: Could not complete cleanup. Error: {e}")
 
     # --- NEW HELPER METHODS ---
+
+    def _redirect_logging_streams(self, stream):
+        """
+        Temporarily points existing Python logging StreamHandlers at the Qt
+        emitter. Detectron2 can keep handlers from earlier imports, so stdout
+        redirection alone is not enough for repeated retraining runs.
+        """
+        redirected = []
+        loggers = [logging.getLogger()]
+        loggers.extend(
+            logger
+            for logger in logging.Logger.manager.loggerDict.values()
+            if isinstance(logger, logging.Logger)
+        )
+        for logger in loggers:
+            for handler in logger.handlers:
+                if isinstance(handler, logging.StreamHandler) and getattr(handler, "stream", None) is not stream:
+                    redirected.append((handler, handler.stream))
+                    handler.stream = stream
+        return redirected
+
+    def _restore_logging_streams(self, redirected_handlers):
+        for handler, stream in reversed(redirected_handlers):
+            handler.stream = stream
 
     def _find_latest_model_in_paths(self, path_list):
         if isinstance(path_list, str):
@@ -602,18 +802,28 @@ class RetrainingThread(QThread):
                 self.log_update.emit(f"Warning: Could not read MAX_ITER from config. Using default {total_iterations}. Error: {e}")
             total_iterations = int(self.config_overrides.get("SOLVER.MAX_ITER", total_iterations))
 
-            # Load train.py as a module and call main() directly — avoids
-            # launching a second PolyVision.exe when running as a frozen build.
-            spec = importlib.util.spec_from_file_location("_polyvision_train", train_script)
-            train_mod = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(train_mod)
-
             old_stdout = sys.stdout
-            sys.stdout = _LineEmitter(self.log_update.emit, self.progress_update.emit, total_iterations)
+            old_stderr = sys.stderr
+            line_emitter = _LineEmitter(self.log_update.emit, self.progress_update.emit, total_iterations)
+            redirected_handlers = []
+            sys.stdout = line_emitter
+            sys.stderr = line_emitter
             try:
+                # Redirect before importing train.py because Detectron2's
+                # setup_logger() binds to the active stream at import time.
+                spec = importlib.util.spec_from_file_location("_polyvision_train", train_script)
+                train_mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(train_mod)
+                redirected_handlers = self._redirect_logging_streams(line_emitter)
+
+                # Call main() directly — avoids launching a second PolyVision.exe
+                # when running as a frozen build.
                 train_mod.main(train_args)
             finally:
+                self._restore_logging_streams(redirected_handlers)
+                line_emitter.flush()
                 sys.stdout = old_stdout
+                sys.stderr = old_stderr
 
             if not self._is_running:
                 self.cancelTraining(challenger_output_dir)
@@ -677,7 +887,25 @@ class RetrainUI(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.model_type = self._read_current_model_type()
+        if self.model_type not in ("Binary", "Multiclass"):
+            self.model_type = "Binary"
         self.retraining_thread = None
+        self.ui_state = "idle"
+        self.training_started_at = None
+        self.current_stage = "Ready"
+        self.current_progress = 0
+        self.current_progress_total = 100
+        self.latest_loss = None
+        self.best_loss = None
+        self.summary_counts = {
+            "positive": 0,
+            "negative": 0,
+            "total": 0,
+            "binary_usable": 0,
+            "multiclass_ready": 0,
+        }
+        self.dashboard_values = {}
+        self.highlight_labels = {}
         # Set project root for model path calculations
         self.project_root = str(Path(__file__).resolve().parents[1])
         self.init_ui()
@@ -693,68 +921,112 @@ class RetrainUI(QDialog):
     def init_ui(self):
         self.setWindowTitle(f"Retrain Model ({self.model_type})")
         self.setWindowIcon(QIcon(resource_path("res", "PolyVisionLogo.png")))
-        self.setFixedSize(800, 600)
-        self.setStyleSheet("""
-            QDialog { background-color: #f0f0f0; }
-            QGroupBox { background-color: transparent; border: 1px solid #c0c0c0; border-radius: 5px; margin-top: 10px; }
-            QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top left; padding: 0 5px; }
-        """)
+        self.setMinimumSize(980, 700)
+        self.resize(1080, 760)
+        self.setStyleSheet(RETRAIN_UI_STYLESHEET)
 
         layout = QVBoxLayout(self)
-        
-        model_group = QGroupBox("Model Selection")
-        model_layout = QHBoxLayout()
-        model_label = QLabel("Select model to retrain:")
-        self.model_combo = QComboBox()
-        self.model_combo.addItems(["Binary", "Multiclass"])
-        current_index = self.model_combo.findText(self.model_type)
-        if current_index != -1: self.model_combo.setCurrentIndex(current_index)
-        model_layout.addWidget(model_label)
-        model_layout.addWidget(self.model_combo)
-        model_group.setLayout(model_layout)
-        
-        # --- Summary Group ---
-        summary_group = QGroupBox("Retraining Data Summary")
-        summary_layout = QGridLayout()
-        self.positive_label = QLabel("Positive Samples (is MP): 0")
-        self.negative_label = QLabel("Negative Samples (not MP): 0")
-        self.total_label = QLabel("Total Samples: 0")
-        self.context_label = QLabel("") # It starts empty
-        self.context_label.setStyleSheet("font-weight: bold;")
-        summary_layout.addWidget(self.positive_label, 0, 0)
-        summary_layout.addWidget(self.negative_label, 0, 1)
-        summary_layout.addWidget(self.total_label, 0, 2)
-        summary_layout.addWidget(self.context_label, 1, 0, 1, 3)
-        #summary_layout.addWidget(self.multiclass_label, 1, 0, 1, 2) # Span across two columns
-        #self.multiclass_label.setStyleSheet("color: green; font-weight: bold;")
-        #summary_layout.addWidget(self.binary_label, 1, 2)
-        #self.binary_label.setStyleSheet("color: #888;")
-        summary_group.setLayout(summary_layout)
+        layout.setContentsMargins(14, 14, 14, 14)
+        layout.setSpacing(10)
 
-        # --- Progress Group ---
+        surface = QFrame()
+        surface.setObjectName("retrainSurface")
+        surface_layout = QVBoxLayout(surface)
+        surface_layout.setContentsMargins(14, 14, 14, 14)
+        surface_layout.setSpacing(10)
+
+        model_group = QGroupBox("Model Selection")
+        model_layout = QVBoxLayout(model_group)
+        model_row = QHBoxLayout()
+        model_label = QLabel("Select model to retrain:")
+        self.binary_button = QPushButton("Binary")
+        self.multiclass_button = QPushButton("Multiclass")
+        for button in (self.binary_button, self.multiclass_button):
+            button.setObjectName("modelChoiceButton")
+            button.setCheckable(True)
+            button.setMinimumWidth(120)
+        model_row.addWidget(model_label)
+        model_row.addStretch()
+        model_row.addWidget(self.binary_button)
+        model_row.addWidget(self.multiclass_button)
+        model_layout.addLayout(model_row)
+        self.model_accent = QFrame()
+        self.model_accent.setFixedHeight(3)
+        model_layout.addWidget(self.model_accent)
+
+        summary_group = QGroupBox("Retraining Data Summary")
+        summary_group.setObjectName("dashboardGroup")
+        summary_layout = QHBoxLayout(summary_group)
+        summary_layout.setSpacing(10)
+        summary_layout.addWidget(
+            self.dashboard_card(
+                "Dataset",
+                [
+                    ("Positive", "dataset_positive", "0"),
+                    ("Negative", "dataset_negative", "0"),
+                    ("Total", "dataset_total", "0"),
+                    ("Usable", "dataset_usable", "0"),
+                ],
+            )
+        )
+        summary_layout.addWidget(
+            self.dashboard_card(
+                "Run Plan",
+                [
+                    ("Model", "run_model", self.model_type),
+                    ("Device", "run_device", "Check on start"),
+                    ("Iterations", "run_iterations", "-"),
+                    ("ETA", "run_eta", "-"),
+                ],
+                title_key="runtime",
+            )
+        )
+        summary_layout.addWidget(
+            self.dashboard_card(
+                "Status",
+                [
+                    ("Phase", "status_phase", "Ready"),
+                    ("Progress", "status_progress", "0%"),
+                    ("Elapsed", "status_elapsed", "-"),
+                    ("Readiness", "status_readiness", "Ready"),
+                ],
+                title_key="status",
+            )
+        )
+
         progress_group = QGroupBox("Retraining Progress")
-        progress_layout = QVBoxLayout()
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setTextVisible(True)
-        self.log_view = QTextEdit()
-        self.log_view.setReadOnly(True)
-        self.log_view.setFont(QFont("Courier", 9))
-        self.log_view.setPlaceholderText("Training logs will appear here...")
-        progress_layout.addWidget(self.progress_bar)
-        progress_layout.addWidget(self.log_view)
-        progress_group.setLayout(progress_layout)
-        
-        # --- Button Group
+        progress_layout = QVBoxLayout(progress_group)
+        progress_layout.setSpacing(10)
+        self.status_panel = self.main_status_panel()
+        self.highlights_panel = self.progress_highlights()
+        progress_layout.addWidget(self.status_panel)
+        progress_layout.addWidget(self.highlights_panel)
+
         button_layout = QHBoxLayout()
+        button_layout.setSpacing(8)
         self.import_button = QPushButton("Import Dataset")
         self.reset_button = QPushButton("Reset Data")
-        self.reset_button.setStyleSheet("color: red;")
         self.start_button = QPushButton("Start Retraining")
         self.cancel_button = QPushButton("Cancel")
         self.close_button = QPushButton("Close")
-        # self.reset_button.hide()
-        self.cancel_button.setEnabled(False)
-        self.import_button.setEnabled(True)         #set to True if you use it
+
+        self.import_button.setProperty("buttonRole", "secondary")
+        self.reset_button.setProperty("buttonRole", "danger")
+        self.start_button.setProperty("buttonRole", "primary")
+        self.cancel_button.setProperty("buttonRole", "warning")
+        self.close_button.setProperty("buttonRole", "secondary")
+        for button in (
+            self.import_button,
+            self.reset_button,
+            self.start_button,
+            self.cancel_button,
+            self.close_button,
+        ):
+            button.setObjectName("footerButton")
+            button.setMinimumHeight(32)
+            button.setMinimumWidth(96)
+        self.start_button.setMinimumWidth(132)
+
         button_layout.addWidget(self.import_button, alignment=Qt.AlignLeft)
         button_layout.addWidget(self.reset_button, alignment=Qt.AlignLeft)
         button_layout.addStretch()
@@ -762,20 +1034,158 @@ class RetrainUI(QDialog):
         button_layout.addWidget(self.cancel_button)
         button_layout.addWidget(self.close_button)
 
-        # --- Final Assembly ---
-        layout.addWidget(model_group)
-        layout.addWidget(summary_group)
-        layout.addWidget(progress_group)
-        layout.addLayout(button_layout)
-        
-        # --- Connections ---
+        surface_layout.addWidget(model_group)
+        surface_layout.addWidget(summary_group)
+        surface_layout.addWidget(progress_group, stretch=2)
+        surface_layout.addLayout(button_layout)
+        layout.addWidget(surface)
+
+        self.binary_button.clicked.connect(lambda: self.set_model_type("Binary"))
+        self.multiclass_button.clicked.connect(lambda: self.set_model_type("Multiclass"))
         self.start_button.clicked.connect(self.start_retraining)
         self.cancel_button.clicked.connect(self.cancel_retraining)
         self.close_button.clicked.connect(self.close)
-        self.model_combo.currentIndexChanged.connect(self._on_model_type_changed)
         self.reset_button.clicked.connect(self.reset_retraining_data)
         self.import_button.clicked.connect(self.run_import_dialog)
-        self.model_combo.currentIndexChanged.connect(self.load_data_summary)
+        self.set_model_type(self.model_type, refresh_summary=False)
+
+    def dashboard_card(self, title, rows, title_key=None):
+        card = QFrame()
+        card.setObjectName("dashboardCard")
+        card.setMinimumWidth(210)
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(12, 10, 12, 10)
+        card_layout.setSpacing(6)
+
+        title_label = QLabel(title)
+        title_label.setObjectName("dashboardTitle")
+        if title_key:
+            self.dashboard_values[f"{title_key}_title"] = title_label
+        card_layout.addWidget(title_label)
+
+        for label_text, key, value in rows:
+            row = QHBoxLayout()
+            row.setSpacing(8)
+            label = QLabel(label_text)
+            label.setObjectName("dashboardLabel")
+            value_label = QLabel(value)
+            value_label.setObjectName("dashboardValue")
+            value_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            self.dashboard_values[key] = value_label
+            row.addWidget(label)
+            row.addStretch()
+            row.addWidget(value_label)
+            card_layout.addLayout(row)
+
+        card_layout.addStretch()
+        return card
+
+    def set_dashboard_value(self, key, value):
+        label = self.dashboard_values.get(key)
+        if label:
+            label.setText(str(value))
+
+    def main_status_panel(self):
+        panel = QFrame()
+        panel.setObjectName("mainStatusPanel")
+        panel_layout = QVBoxLayout(panel)
+        panel_layout.setContentsMargins(14, 10, 14, 10)
+        panel_layout.setSpacing(8)
+
+        top = QHBoxLayout()
+        self.status_percent_label = QLabel("Ready")
+        self.status_percent_label.setObjectName("mainStatusPercent")
+        self.status_eta_label = QLabel("ETA -")
+        self.status_eta_label.setObjectName("mainStatusEta")
+        self.status_health_label = QLabel("Ready")
+        self.status_health_label.setObjectName("mainStatusHealth")
+        top.addWidget(self.status_percent_label)
+        top.addSpacing(12)
+        top.addWidget(self.status_eta_label)
+        top.addStretch()
+        top.addWidget(self.status_health_label)
+        panel_layout.addLayout(top)
+
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setMaximum(100)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setTextVisible(False)
+        panel_layout.addWidget(self.progress_bar)
+
+        self.status_bottom_label = QLabel("")
+        self.status_bottom_label.setObjectName("mainStatusBottom")
+        panel_layout.addWidget(self.status_bottom_label)
+        return panel
+
+    def progress_highlights(self):
+        panel = QFrame()
+        panel.setObjectName("highlightsPanel")
+        panel.setMinimumHeight(330)
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(14, 12, 14, 12)
+        layout.setSpacing(9)
+
+        self.current_step_label = QLabel("Ready to start retraining")
+        self.current_step_label.setObjectName("currentStep")
+        self.current_step_label.setWordWrap(True)
+        layout.addWidget(self.current_step_label)
+
+        self.step_summary_label = QLabel("Review the run plan, then start when ready.")
+        self.step_summary_label.setObjectName("stepSummary")
+        self.step_summary_label.setWordWrap(True)
+        layout.addWidget(self.step_summary_label)
+
+        columns = QHBoxLayout()
+        columns.setSpacing(10)
+        columns.addWidget(self.highlight_column("Completed", "done", 4))
+        columns.addWidget(self.highlight_column("In Progress", "active", 5))
+        columns.addWidget(self.highlight_column("Next", "next", 4))
+        layout.addLayout(columns)
+
+        self.technical_button = QPushButton("Show Technical Log")
+        self.technical_button.setCheckable(True)
+        self.technical_button.setObjectName("technicalLogToggle")
+
+        self.log_view = QTextEdit()
+        self.log_view.setReadOnly(True)
+        self.log_view.setFont(QFont("Courier", 9))
+        self.log_view.setPlaceholderText("Training logs will appear here...")
+        self.log_view.setVisible(False)
+        self.log_view.setFixedHeight(170)
+
+        def toggle_log(checked):
+            self.log_view.setVisible(checked)
+            self.technical_button.setText("Hide Technical Log" if checked else "Show Technical Log")
+
+        self.technical_button.toggled.connect(toggle_log)
+        layout.addWidget(self.technical_button, alignment=Qt.AlignRight)
+        layout.addWidget(self.log_view)
+        return panel
+
+    def highlight_column(self, title, status, capacity):
+        card = QFrame()
+        card.setObjectName("highlightCard")
+        card.setMinimumWidth(240)
+        card.setMinimumHeight(150)
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setSpacing(7)
+
+        title_label = QLabel(title)
+        title_label.setObjectName("highlightTitle")
+        layout.addWidget(title_label)
+
+        self.highlight_labels[status] = []
+        for _ in range(capacity):
+            label = QLabel("")
+            label.setObjectName(f"highlightItem_{status}")
+            label.setWordWrap(True)
+            label.setVisible(False)
+            self.highlight_labels[status].append(label)
+            layout.addWidget(label)
+
+        layout.addStretch()
+        return card
         
     def run_import_dialog(self):
         dialog = ImportDialog(self)
@@ -783,8 +1193,7 @@ class RetrainUI(QDialog):
             image_dir, json_path = dialog.get_paths()
             
             # Disable buttons during import
-            self.import_button.setEnabled(False)
-            self.start_button.setEnabled(False)
+            self.update_action_state("importing")
             self.log_view.clear()
 
             # Run the import in a background thread
@@ -793,11 +1202,6 @@ class RetrainUI(QDialog):
             self.import_thread.import_finished.connect(self.on_import_finished)
             self.import_thread.start()
 
-    # In Retrain.py -> RetrainUI
-
-# In Retrain.py -> RetrainUI
-# REPLACE the entire function with this one.
-
     def load_data_summary(self):
         data = get_retraining_data()
         
@@ -805,85 +1209,273 @@ class RetrainUI(QDialog):
         pos_count = 0
         neg_count = 0
         multiclass_ready_count = 0
-
-        # --- Pass 1: Discover the nature of the data ---
         max_class_id = 0
-        all_class_ids = []
+        parsed_rows = []
+
         for row in data:
             bbox_str = row[2]
+            bboxes = []
             try:
                 bboxes = json.loads(bbox_str)
-                if isinstance(bboxes, list):
-                    for bbox_info in bboxes:
-                        all_class_ids.append(bbox_info.get("class_id", 0))
             except (json.JSONDecodeError, TypeError):
-                continue
-        if all_class_ids:
-            max_class_id = max(all_class_ids)
-        is_db_multiclass = max_class_id > 1
+                bboxes = []
+            if not isinstance(bboxes, list):
+                bboxes = []
+            parsed_rows.append((row, bboxes))
+            for bbox_info in bboxes:
+                if isinstance(bbox_info, dict):
+                    try:
+                        class_id = int(bbox_info.get("class_id", 0) or 0)
+                    except (TypeError, ValueError):
+                        class_id = 0
+                    max_class_id = max(max_class_id, class_id)
 
-        # --- Pass 2: Count the samples ---
-        for row in data:
+        is_db_multiclass = max_class_id > 1
+        for row, bboxes in parsed_rows:
             is_mp = row[1]
-            bbox_str = row[2]
             if is_mp == 1:
                 pos_count += 1
-                if is_db_multiclass:
-                    try:
-                        bboxes = json.loads(bbox_str)
-                        if isinstance(bboxes, list) and len(bboxes) > 0:
-                            multiclass_ready_count += 1
-                    except (json.JSONDecodeError, TypeError):
-                        pass
+                row_model_type = row[3] if len(row) > 3 else None
+                has_boxes = len(bboxes) > 0
+                if has_boxes and (row_model_type == "Multiclass" or (row_model_type is None and is_db_multiclass)):
+                    multiclass_ready_count += 1
             else:
                 neg_count += 1
 
-        # --- Update the standard labels ---
-        self.positive_label.setText(f"Positive Samples (is MP): {pos_count}")
-        self.negative_label.setText(f"Negative Samples (not MP): {neg_count}")
-        self.total_label.setText(f"Total Samples: {total_count}")
-        
-        # --- FINAL ADAPTIVE UI LOGIC ---
-        current_model_type = self.model_combo.currentText()
-        
-        if current_model_type == "Multiclass":
-            # In Multiclass mode, show the count of annotated positive samples.
-            self.context_label.setText(f"Multiclass-Ready Samples: {multiclass_ready_count}")
-            self.context_label.setStyleSheet("color: green; font-weight: bold;")
-            self.context_label.setToolTip(
-                "Positive samples with one or more bounding boxes, suitable for multiclass training."
-            )
+        self.summary_counts = {
+            "positive": pos_count,
+            "negative": neg_count,
+            "total": total_count,
+            "binary_usable": total_count,
+            "multiclass_ready": multiclass_ready_count,
+        }
+        self.update_dashboard_for_model()
+        if self.ui_state == "idle":
+            self.update_idle_progress_copy()
+            self.update_action_state("idle")
 
-            # Disable button if no data for this specific task
-            if multiclass_ready_count == 0:
-                self.start_button.setEnabled(False)
-                self.start_button.setText("No Multiclass Data")
-            else:
-                self.start_button.setEnabled(True)
-                self.start_button.setText("Start Retraining")
+    def _on_model_type_changed(self, model_type):
+        self.set_model_type(model_type)
 
-        else: # "Binary" mode
-            # In Binary mode, show the total count of all samples, as they are all useful.
-            self.context_label.setText(f"Binary-Relevant Samples: {total_count}")
-            self.context_label.setStyleSheet("color: blue; font-weight: bold;")
-            self.context_label.setToolTip(
-                "All samples (positive and negative) are used for binary training."
-            )
-            
-            # Enable button as long as there is some data
-            if total_count == 0:
-                self.start_button.setEnabled(False)
-                self.start_button.setText("No Data to Retrain")
-            else:
-                self.start_button.setEnabled(True)
-                self.start_button.setText("Start Retraining")
-
-        if total_count == 0:
-            self.log_view.setText("No retraining data found. Please collect data for retraining.")
-    def _on_model_type_changed(self):
-        self.model_type = self.model_combo.currentText()
+    def set_model_type(self, model_type, refresh_summary=True):
+        if model_type not in ("Binary", "Multiclass"):
+            model_type = "Binary"
+        self.model_type = model_type
         self.setWindowTitle(f"Retrain Model ({self.model_type})")
-        self.load_data_summary()
+        is_binary = self.model_type == "Binary"
+        meta = self.model_meta()
+        self.binary_button.setChecked(is_binary)
+        self.multiclass_button.setChecked(not is_binary)
+        self.binary_button.setStyleSheet(self.model_button_style("#0f5f9e", is_binary))
+        self.multiclass_button.setStyleSheet(self.model_button_style("#0f7f45", not is_binary))
+        self.model_accent.setStyleSheet(f"background: {meta['color']};")
+        self.start_button.setStyleSheet(self.primary_button_style())
+        self.update_status_accent()
+        if refresh_summary:
+            self.load_data_summary()
+        else:
+            self.update_dashboard_for_model()
+            self.update_idle_progress_copy()
+            self.update_action_state("idle")
+
+    def model_meta(self):
+        if self.model_type == "Multiclass":
+            return {
+                "color": "#0f7f45",
+                "hover": "#0b6f3b",
+                "pressed": "#095f33",
+                "usable_key": "multiclass_ready",
+                "usable_label": "multiclass-ready samples",
+                "summary": "Review the Multiclass run plan, then start when ready.",
+                "upcoming_train": "Train updated Multiclass model",
+                "no_data_text": "No Multiclass Data",
+            }
+        return {
+            "color": "#0f5f9e",
+            "hover": "#0c5288",
+            "pressed": "#0a4775",
+            "usable_key": "binary_usable",
+            "usable_label": "binary-relevant samples",
+            "summary": "Review the Binary run plan, then start when ready.",
+            "upcoming_train": "Train updated Binary model",
+            "no_data_text": "No Data to Retrain",
+        }
+
+    def usable_sample_count(self):
+        return int(self.summary_counts.get(self.model_meta()["usable_key"], 0))
+
+    def update_dashboard_for_model(self):
+        usable = self.usable_sample_count()
+        self.set_dashboard_value("dataset_positive", self.summary_counts["positive"])
+        self.set_dashboard_value("dataset_negative", self.summary_counts["negative"])
+        self.set_dashboard_value("dataset_total", self.summary_counts["total"])
+        self.set_dashboard_value("dataset_usable", usable)
+        self.set_dashboard_value("run_model", self.model_type)
+        self.set_dashboard_value("run_iterations", self.read_max_iter())
+        if self.ui_state == "idle":
+            self.set_dashboard_value("run_eta", "-")
+            self.set_dashboard_value("status_phase", "Ready")
+            self.set_dashboard_value("status_progress", "0%")
+            self.set_dashboard_value("status_elapsed", "-")
+            self.set_dashboard_value("status_readiness", "Ready" if usable > 0 else "Needs Data")
+            self.set_dashboard_value("run_device", "Check on start")
+
+    def read_max_iter(self, default=300):
+        config_file_path = models_path("Retraining", f"{self.model_type.lower()}_config.yaml")
+        try:
+            with open(config_file_path, 'r') as f:
+                config_data = yaml.safe_load(f)
+                return int(config_data.get('SOLVER', {}).get('MAX_ITER', default))
+        except Exception:
+            return default
+
+    def update_idle_progress_copy(self):
+        meta = self.model_meta()
+        usable = self.usable_sample_count()
+        self.current_stage = "Ready"
+        self.status_percent_label.setText("Ready")
+        self.status_percent_label.setStyleSheet(
+            f"color: {meta['color']}; font-size: 17pt; font-weight: 800;"
+        )
+        self.status_eta_label.setText("ETA -")
+        self.status_health_label.setText("Ready" if usable > 0 else "Needs Data")
+        self.status_bottom_label.setText(
+            f"Waiting for confirmation - {usable} {meta['usable_label']} ready"
+        )
+        self.progress_bar.setMaximum(100)
+        self.progress_bar.setValue(0)
+        self.current_step_label.setText(f"Ready to start {self.model_type} retraining")
+        self.step_summary_label.setText(meta["summary"])
+        if usable > 0:
+            completed = [
+                f"Found {usable} {meta['usable_label']}",
+                "Loaded retraining configuration",
+                "GPU check will run before training",
+            ]
+            active = ["Waiting for user confirmation"]
+        else:
+            completed = ["Loaded retraining configuration"]
+            active = [f"No usable {self.model_type} retraining data found"]
+        self.set_highlight_items("done", completed)
+        self.set_highlight_items("active", active)
+        self.set_highlight_items(
+            "next",
+            [
+                "Prepare retraining dataset",
+                meta["upcoming_train"],
+                "Benchmark and compare results",
+            ],
+        )
+        self.set_idle_log_message()
+        self.update_status_accent()
+
+    def set_idle_log_message(self):
+        current_text = self.log_view.toPlainText().strip()
+        idle_prefixes = (
+            "Training logs will appear here",
+            "No retraining data found",
+            "Binary model selected.",
+            "Multiclass model selected.",
+        )
+        if current_text and not current_text.startswith(idle_prefixes):
+            return
+        usable = self.usable_sample_count()
+        if usable <= 0:
+            self.log_view.setPlainText("No retraining data found. Please collect data for retraining.")
+            return
+        self.log_view.setPlainText(
+            f"{self.model_type} model selected.\n"
+            f"{usable} {self.model_meta()['usable_label']} are ready.\n"
+            "Training logs will appear here after retraining starts."
+        )
+
+    def set_highlight_items(self, status, items):
+        marker = {"done": "-", "active": "*", "next": ">"}.get(status, "-")
+        labels = self.highlight_labels.get(status, [])
+        for index, label in enumerate(labels):
+            if index < len(items):
+                label.setText(f"{marker} {items[index]}")
+                label.setVisible(True)
+            else:
+                label.setVisible(False)
+
+    def update_status_accent(self):
+        meta = self.model_meta()
+        self.status_panel.setStyleSheet(
+            "QFrame#mainStatusPanel { "
+            "background: #f8fbfd; "
+            "border: 1px solid #bfd0dc; "
+            f"border-left: 5px solid {meta['color']}; "
+            "border-radius: 7px; } "
+            "QProgressBar::chunk { "
+            f"background: {meta['color']}; border-radius: 8px; }}"
+        )
+
+    def model_button_style(self, color, selected):
+        if selected:
+            return (
+                f"QPushButton#modelChoiceButton {{ color: white; background: {color}; "
+                f"border: 1px solid {color}; border-radius: 3px; padding: 5px 14px; }}"
+            )
+        return (
+            "QPushButton#modelChoiceButton { color: #1f2933; background: #f5f5f5; "
+            f"border: 1px solid {color}; border-radius: 3px; padding: 5px 14px; }} "
+            "QPushButton#modelChoiceButton:hover { background: #eef6f7; }"
+        )
+
+    def primary_button_style(self):
+        meta = self.model_meta()
+        return (
+            "QPushButton#footerButton { "
+            "color: #ffffff; "
+            f"background: {meta['color']}; "
+            f"border: 1px solid {meta['color']}; "
+            "border-radius: 4px; "
+            "padding: 6px 14px; "
+            "font-weight: 700; } "
+            "QPushButton#footerButton:hover { "
+            f"background: {meta['hover']}; border-color: {meta['hover']}; }} "
+            "QPushButton#footerButton:pressed { "
+            f"background: {meta['pressed']}; border-color: {meta['pressed']}; }} "
+            "QPushButton#footerButton:disabled { "
+            "color: #9aa5b1; background: #eef1f4; border-color: #d5dbe1; }"
+        )
+
+    def update_action_state(self, state=None):
+        if state:
+            self.ui_state = state
+        usable = self.usable_sample_count()
+        idle = self.ui_state == "idle"
+        importing = self.ui_state == "importing"
+        training = self.ui_state == "training"
+        cancelling = self.ui_state == "cancelling"
+
+        model_enabled = idle
+        self.binary_button.setEnabled(model_enabled)
+        self.multiclass_button.setEnabled(model_enabled)
+        self.import_button.setEnabled(idle)
+        self.reset_button.setEnabled(idle)
+        self.start_button.setEnabled(idle and usable > 0)
+        self.cancel_button.setEnabled(training)
+        self.close_button.setEnabled(True)
+        self.cancel_button.setText("Cancelling..." if cancelling else "Cancel")
+
+        if idle:
+            self.start_button.setText("Start Retraining" if usable > 0 else self.model_meta()["no_data_text"])
+        elif importing:
+            self.start_button.setText("Importing...")
+        elif training:
+            self.start_button.setText("Training...")
+        elif cancelling:
+            self.start_button.setText("Training...")
+
+    def format_duration(self, seconds):
+        seconds = max(0, int(seconds))
+        minutes, sec = divmod(seconds, 60)
+        hours, minutes = divmod(minutes, 60)
+        if hours:
+            return f"{hours}h {minutes:02d}m"
+        return f"{minutes}m {sec:02d}s"
 
     def launch_gpu_repair(self):
         if getattr(sys, "frozen", False):
@@ -957,15 +1549,15 @@ class RetrainUI(QDialog):
     def start_retraining(self):
 
         RECOMMENDED_MINIMUM_SAMPLES = 50
-        new_data = get_retraining_data()
-        num_new_samples = len(new_data)
+        self.load_data_summary()
+        num_new_samples = self.usable_sample_count()
 
         if num_new_samples < RECOMMENDED_MINIMUM_SAMPLES:
             # The number of samples is below our recommendation, so we warn the user.
             warning_reply = QMessageBox.warning(
                 self,
                 'Low Data Warning',
-                f"You have only collected {num_new_samples} new data samples.\n\n"
+                f"You have only collected {num_new_samples} usable {self.model_type} data samples.\n\n"
                 f"It is recommended to have at least {RECOMMENDED_MINIMUM_SAMPLES} new samples "
                 "to see a significant improvement in model performance.\n\n"
                 "Do you want to continue with the retraining anyway?",
@@ -996,30 +1588,44 @@ class RetrainUI(QDialog):
             except Exception as e:
                 self.log_view.append(f"Warning: Could not save setting to user_settings.json. {e}")
 
-            # 3. Read MAX_ITER from the correct config file
-            max_iter = 300 # A safe default value
-            #freeze_backbone = self.freeze_checkbox.isChecked()
-            config_file_path = models_path("Retraining", f"{self.model_type.lower()}_config.yaml")
-            try:
-                with open(config_file_path, 'r') as f:
-                    config_data = yaml.safe_load(f)
-                    # Navigate the YAML structure to find the value
-                    max_iter = config_data.get('SOLVER', {}).get('MAX_ITER', 300)
-                self.log_view.append(f"Loaded MAX_ITER = {max_iter} from config.")
-            except Exception as e:
-                self.log_view.append(f"Warning: Could not read MAX_ITER from {config_file_path}. Using default value of {max_iter}. Error: {e}")
-
-            # 4. Lock the UI and prepare for launch
-            self.start_button.setEnabled(False)
-            self.reset_button.setEnabled(False)
-            self.cancel_button.setEnabled(True)
-            self.model_combo.setEnabled(False)
+            max_iter = self.read_max_iter()
+            self.training_started_at = time.time()
+            self.current_stage = "Starting retraining"
+            self.current_progress = 0
+            self.current_progress_total = max_iter
+            self.latest_loss = None
+            self.best_loss = None
             self.log_view.clear()
+            self.log_view.append(f"Loaded MAX_ITER = {max_iter} from config.")
+            self.progress_bar.setMaximum(max_iter)
             self.progress_bar.setValue(0)
-            self.progress_bar.setMaximum(max_iter)  
-            self.progress_bar.setFormat("%p%  (%v/%m iterations)")
+            self.dashboard_values["runtime_title"].setText("Runtime")
+            self.dashboard_values["status_title"].setText("Training")
+            self.set_dashboard_value("run_model", self.model_type)
+            self.set_dashboard_value("run_iterations", f"0 / {max_iter}")
+            self.set_dashboard_value("run_eta", "estimating...")
+            self.set_dashboard_value("status_phase", "Starting")
+            self.set_dashboard_value("status_progress", "0%")
+            self.set_dashboard_value("status_elapsed", "0m 00s")
+            self.set_dashboard_value("status_readiness", "Running")
+            self.status_percent_label.setText("0%")
+            self.status_eta_label.setText("ETA estimating...")
+            self.status_health_label.setText("Starting")
+            self.status_bottom_label.setText(f"{self.model_type} retraining is starting")
+            self.current_step_label.setText("Starting retraining")
+            self.step_summary_label.setText("Preparing the retraining pipeline.")
+            self.set_highlight_items("done", ["User confirmed retraining"])
+            self.set_highlight_items("active", ["Starting retraining thread"])
+            self.set_highlight_items(
+                "next",
+                [
+                    "Prepare retraining dataset",
+                    "Train challenger model",
+                    "Evaluate champion vs challenger",
+                ],
+            )
+            self.update_action_state("training")
             
-            # 5. Create and start the thread with all the correct parameters
             self.retraining_thread = RetrainingThread(self.model_type)
             self.retraining_thread.log_update.connect(self.update_log)
             self.retraining_thread.progress_update.connect(self.update_progress)
@@ -1030,9 +1636,11 @@ class RetrainUI(QDialog):
     def cancel_retraining(self):
         if self.retraining_thread and self.retraining_thread.isRunning():
             self.retraining_thread.stop()
-            self.cancel_button.setEnabled(False)
-            self.reset_button.setEnabled(True)
-            self.cancel_button.setText("Cancelling...")
+            self.status_health_label.setText("Cancelling")
+            self.current_step_label.setText("Cancelling retraining")
+            self.step_summary_label.setText("Waiting for the current training step to stop safely.")
+            self.set_highlight_items("active", ["Cancellation requested", "Cleaning up generated files"])
+            self.update_action_state("cancelling")
             
     # NEW: Slots to receive signals from the background thread
     @pyqtSlot(int)
@@ -1040,26 +1648,199 @@ class RetrainUI(QDialog):
         self.log_view.append(f"\n--- Import complete. Successfully added {imported_count} images. ---")
         QMessageBox.information(self, "Import Complete", f"Successfully imported {imported_count} images into the retraining dataset.")
         
-        # Re-enable buttons and refresh the summary
-        self.import_button.setEnabled(False)
+        self.ui_state = "idle"
         self.load_data_summary() # This will re-enable the start button if data exists
 
     @pyqtSlot(str)
     def update_log(self, message):
         self.log_view.append(message)
+        self.update_status_from_log(message)
 
     @pyqtSlot(int, int)
     def update_progress(self, current_step, total_steps):
         if self.progress_bar.maximum() != total_steps:
             self.progress_bar.setMaximum(total_steps)
         self.progress_bar.setValue(current_step)
+        self.current_progress = max(0, int(current_step))
+        self.current_progress_total = max(1, int(total_steps))
+        percent = int((self.current_progress / self.current_progress_total) * 100)
+        elapsed = 0 if self.training_started_at is None else time.time() - self.training_started_at
+        elapsed_text = self.format_duration(elapsed)
+
+        if self.training_started_at is None or self.current_progress <= 0:
+            eta_text = "estimating..."
+            status_eta = "ETA estimating..."
+        else:
+            rate = self.current_progress / max(elapsed, 1)
+            remaining_seconds = (self.current_progress_total - self.current_progress) / max(rate, 0.0001)
+            eta_text = self.format_duration(remaining_seconds)
+            status_eta = f"ETA {eta_text}"
+
+        self.status_percent_label.setText(f"{percent}%")
+        self.status_eta_label.setText(status_eta)
+        self.status_bottom_label.setText(
+            f"{self.current_stage} - Iteration {self.current_progress} / {self.current_progress_total}"
+        )
+        self.set_dashboard_value("run_iterations", f"{self.current_progress} / {self.current_progress_total}")
+        self.set_dashboard_value("run_eta", eta_text)
+        self.set_dashboard_value("status_progress", f"{percent}%")
+        self.set_dashboard_value("status_elapsed", elapsed_text)
+        if "Stage 3/4" in self.current_stage:
+            active = [
+                f"Iteration {self.current_progress} / {self.current_progress_total}",
+                "Training challenger model",
+            ]
+            if self.latest_loss is not None:
+                active.append(f"Current loss: {self.latest_loss:.3f}")
+            if self.best_loss is not None:
+                active.append(f"Best loss so far: {self.best_loss:.3f}")
+            self.set_highlight_items("active", active)
+
+    def update_status_from_log(self, message):
+        stripped = message.strip()
+        if not stripped:
+            return
+
+        if stripped.startswith("Selected device:"):
+            device = stripped.split(":", 1)[1].strip()
+            self.set_dashboard_value("run_device", "CUDA GPU" if device == "cuda" else device.upper())
+            return
+
+        if stripped.startswith("Status:"):
+            status = stripped.split(":", 1)[1].strip()
+            if status == GPU_READY:
+                self.status_health_label.setText("GPU Ready")
+            elif status in {HARDWARE_PRESENT_SOFTWARE_MISSING, CUDA_BROKEN}:
+                self.status_health_label.setText("CPU Mode")
+            elif status == HARDWARE_MISSING:
+                self.status_health_label.setText("CPU Mode")
+            return
+
+        if "Stage 1/4" in stripped:
+            self.set_training_stage(
+                "Stage 1/4: Preparing training data",
+                "Preparing the merged retraining dataset.",
+                ["Checked GPU and training environment"],
+                ["Preparing training data"],
+                [
+                    "Identify champion model",
+                    "Train challenger model",
+                    "Evaluate champion vs challenger",
+                ],
+            )
+            return
+
+        if "Stage 2/4" in stripped:
+            self.set_training_stage(
+                "Stage 2/4: Identifying current Champion model",
+                "Finding the active model to benchmark against.",
+                [
+                    "Checked GPU and training environment",
+                    "Prepared retraining data",
+                ],
+                ["Identifying champion model"],
+                [
+                    "Train challenger model",
+                    "Evaluate champion vs challenger",
+                    "Ask whether to deploy the new model",
+                ],
+            )
+            return
+
+        if "Stage 3/4" in stripped:
+            self.set_training_stage(
+                "Stage 3/4: Training new Challenger model",
+                f"{self.model_type} model training is running.",
+                [
+                    "Checked GPU and training environment",
+                    "Prepared retraining data",
+                    "Identified champion model",
+                ],
+                ["Training challenger model"],
+                [
+                    "Verify model_final.pth was saved",
+                    "Evaluate champion vs challenger",
+                    "Ask whether to deploy the new model",
+                ],
+            )
+            return
+
+        if "Stage 4/4" in stripped:
+            self.set_training_stage(
+                "Stage 4/4: Evaluating Champion vs. Challenger",
+                "Benchmarking both models before deployment.",
+                [
+                    "Checked GPU and training environment",
+                    "Prepared retraining data",
+                    "Trained challenger model",
+                ],
+                ["Benchmarking champion and challenger"],
+                ["Review comparison results", "Choose whether to deploy"],
+            )
+            if self.current_progress_total > 0:
+                self.progress_bar.setValue(self.current_progress_total)
+                self.status_percent_label.setText("100%")
+                self.set_dashboard_value("status_progress", "100%")
+            self.status_eta_label.setText("ETA -")
+            self.set_dashboard_value("run_eta", "-")
+            return
+
+        if "total_loss:" in stripped:
+            try:
+                loss_text = stripped.split("total_loss:", 1)[1].strip().split()[0]
+                self.latest_loss = float(loss_text)
+                self.best_loss = self.latest_loss if self.best_loss is None else min(self.best_loss, self.latest_loss)
+            except Exception:
+                pass
+            return
+
+        if "Training complete. Verifying model file exists" in stripped:
+            self.set_highlight_items(
+                "active",
+                ["Training complete", "Verifying model_final.pth was saved"],
+            )
+            return
+
+        if "Model file found. Proceeding to evaluation." in stripped:
+            self.set_highlight_items(
+                "done",
+                [
+                    "Checked GPU and training environment",
+                    "Prepared retraining data",
+                    "Trained challenger model",
+                    "Verified model file",
+                ],
+            )
+            return
+
+        if "PIPELINE FAILED" in stripped or stripped.startswith("FATAL"):
+            self.status_health_label.setText("Failed")
+            self.set_dashboard_value("status_readiness", "Failed")
+            self.current_step_label.setText("Retraining failed")
+            self.step_summary_label.setText("No model was deployed. Review the technical log for details.")
+            return
+
+        if "Training was interrupted by user." in stripped:
+            self.status_health_label.setText("Cancelled")
+            self.current_step_label.setText("Retraining cancelled")
+            self.step_summary_label.setText("Generated challenger files are being cleaned up.")
+
+    def set_training_stage(self, title, summary, completed, active, upcoming):
+        self.current_stage = title
+        self.current_step_label.setText(title)
+        self.step_summary_label.setText(summary)
+        self.status_health_label.setText("Running normally")
+        self.status_bottom_label.setText(title)
+        self.set_dashboard_value("status_phase", title.split(":", 1)[0])
+        self.set_dashboard_value("status_readiness", "Running")
+        self.set_highlight_items("done", completed)
+        self.set_highlight_items("active", active)
+        self.set_highlight_items("next", upcoming)
 
     @pyqtSlot(dict)
     def on_retraining_finished(self, result):
-        self.start_button.setEnabled(True)
         self.cancel_button.setEnabled(False)
         self.cancel_button.setText("Cancel")
-        self.model_combo.setEnabled(True)
         
         if not result.get('success'):
             QMessageBox.critical(self, "Retraining Failed", result.get('message', 'An unknown error occurred.'))
@@ -1086,24 +1867,18 @@ class RetrainUI(QDialog):
             self.finishedTraining()  # Reset UI to idle state after rejection
 
     def finishedTraining(self):
-        
-        # Reset progress bar to idle state
-        self.progress_bar.setValue(0)
-        self.progress_bar.setMaximum(100)
-        self.progress_bar.setFormat("Waiting to start...")
+        self.training_started_at = None
+        self.current_progress = 0
+        self.current_progress_total = 100
+        self.current_stage = "Ready"
         
         # Add completion message to logs
         self.log_view.append("\n" + "="*50)
         self.log_view.append("Training session completed. Ready for next operation.")
         self.log_view.append("="*50)
-        
-        # Ensure buttons are in correct state (redundant but safe)
-        self.start_button.setEnabled(True)
-        self.cancel_button.setEnabled(False)
-        self.cancel_button.setText("Cancel")
-        self.model_combo.setEnabled(True)
-        
-        # Refresh data summary in case anything changed
+        self.dashboard_values["runtime_title"].setText("Run Plan")
+        self.dashboard_values["status_title"].setText("Status")
+        self.update_action_state("idle")
         self.load_data_summary()
 
     def promote_to_base_dataset(self):
