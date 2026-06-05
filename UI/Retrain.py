@@ -5,7 +5,6 @@ import sys
 import json
 import sqlite3
 import argparse
-import importlib.util
 import logging
 import threading
 import shutil
@@ -23,19 +22,17 @@ from datetime import datetime
 from ComparisonDialog import ComparisonDialog
 from pathlib import Path
 
-RETRAINING_MODULE_DIR = Path(__file__).resolve().parents[1] / "Models" / "Retraining"
-if str(RETRAINING_MODULE_DIR) not in sys.path:
-    sys.path.insert(0, str(RETRAINING_MODULE_DIR))
-
-from gpu_diagnostics import (
+from retraining_runtime import train as retraining_train
+from retraining_runtime.gpu_diagnostics import (
     CUDA_BROKEN,
     GPU_READY,
     HARDWARE_MISSING,
     HARDWARE_PRESENT_SOFTWARE_MISSING,
+    RETRAINING_RUNTIME_BROKEN,
     diagnose_gpu_support,
     format_diagnostic_lines,
-    should_offer_repair,
 )
+from retraining_runtime.ui_policy import BLOCKED, CPU_FALLBACK, READY, retraining_start_policy
 
 import cv2
 import time
@@ -364,13 +361,11 @@ class RetrainingThread(QThread):
 
     def __init__(self, model_type, config_overrides={}):
         super().__init__()
-        polyvision_root = Path(__file__).resolve().parents[1]
         self.model_type = model_type
         self.config_overrides = config_overrides # For HPO-optimized params
         self.process = None
         self._is_running = True
         self._cancel_event = threading.Event()
-        self.project_root = str(polyvision_root)
     
     #not used as of the moment. safely delete it to have clean code
     def _find_project_root_containing(self, marker_dir: str = "production_models") -> str:
@@ -463,10 +458,10 @@ class RetrainingThread(QThread):
         """
         # Define base model directories and protected base model names
         if self.model_type == 'Binary':
-            base_model_dir = os.path.join(self.project_root, "Models", "SEAMaP-Binary-Full", "faster_rcnn_R_50_FPN_3x")
+            base_model_dir = models_path("SEAMaP-Binary-Full", "faster_rcnn_R_50_FPN_3x")
             protected_base_model = "2025-10-01-03-07-35"  # Binary base model
         else:
-            base_model_dir = os.path.join(self.project_root, "Models", "SEAMaP-Multi-class-100", "faster_rcnn_R_50_FPN_3x")
+            base_model_dir = models_path("SEAMaP-Multi-class-100", "faster_rcnn_R_50_FPN_3x")
             protected_base_model = "2025-10-01-03-54-34"  # Multiclass base model
         
         # Look for any model_final.pth in the base directory (including timestamp subdirectories)
@@ -498,25 +493,17 @@ class RetrainingThread(QThread):
         # Convert to absolute paths to avoid working directory issues
         abs_model_path = os.path.abspath(model_path)
         
-        # Construct test set path relative to project root
-        project_root = Path(__file__).resolve().parents[1]  # PolyVision-2.0
-        
         #Final test set path
         if self.model_type == "Binary":
-            test_set_json = os.path.join(project_root, "Models", "SEAMaP-Binary-Full-6", "test", "_annotations.coco.json")
+            test_set_json = models_path("SEAMaP-Binary-Full-6", "test", "_annotations.coco.json")
         else: #Multiclass
-            test_set_json = os.path.join(project_root, "Models", "SEAMaP-Multi-class-100-1", "test", "_annotations.coco.json")
-        
-        # test_set_json = os.path.join(project_root, "Models", "Retraining", "original_datasets", f"{self.model_type.lower()}_90_percent", "test", "_annotations.coco.json")
+            test_set_json = models_path("SEAMaP-Multi-class-100-1", "test", "_annotations.coco.json")
         
         if not os.path.exists(test_set_json):
             self.log_update.emit(f"FATAL: Test set not found at '{test_set_json}'. Cannot benchmark.")
             return None
 
         try:
-            # Import and call benchmark function directly instead of subprocess
-            sys.path.append(os.path.join(project_root, "UI"))
-        
             # Create a mock args object
             class MockArgs:
                 def __init__(self, model_path, annotations_path, num_classes, run_name):
@@ -697,13 +684,11 @@ class RetrainingThread(QThread):
 
     def prepare_training_command(self, annotations_path, output_dir):
         """
-        Prepares the command to execute the external training script,
-        including the HPO overrides.
+        Prepares arguments for the bundled retraining runtime, including HPO overrides.
         """
-        train_script = models_path("Retraining", "train.py")
         config_file = models_path("Retraining", f"{self.model_type.lower()}_config.yaml")
 
-        if not os.path.exists(train_script) or not os.path.exists(config_file):
+        if not os.path.exists(config_file):
             return None, None
 
         # --- Build opts list ---
@@ -733,7 +718,7 @@ class RetrainingThread(QThread):
             cancel_event=self._cancel_event,
         )
 
-        return train_script, train_args
+        return retraining_train, train_args
 
     def run(self):
         """
@@ -748,6 +733,8 @@ class RetrainingThread(QThread):
             for line in format_diagnostic_lines(gpu_report):
                 self.log_update.emit(line)
             self.log_update.emit("")
+            if not gpu_report.retraining_available:
+                raise RuntimeError(f"Retraining runtime is unavailable: {gpu_report.reason}")
 
             # --- STAGE 1: DATA PREPARATION ---
             self.log_update.emit("Stage 1/4: Preparing training data...")
@@ -772,18 +759,15 @@ class RetrainingThread(QThread):
             timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
             if self.model_type == 'Binary':
                 # Save retrained models to base model directory with timestamp
-                challenger_base_path = os.path.join(self.project_root, "Models", "SEAMaP-Binary-Full", "faster_rcnn_R_50_FPN_3x")
+                challenger_base_path = models_path("SEAMaP-Binary-Full", "faster_rcnn_R_50_FPN_3x")
             else: # Multiclass
-                # TEMPORARY: Using compromised/testing base model for multiclass
-                # challenger_base_path = os.path.join(self.project_root, "Models", "SEAMaP-90%-Real-Multiclass", "faster_rcnn_R_50_FPN_3x")
-                # COMMENTED OUT: Original final base model
-                challenger_base_path = os.path.join(self.project_root, "Models", "SEAMaP-Multi-class-100", "faster_rcnn_R_50_FPN_3x")
+                challenger_base_path = models_path("SEAMaP-Multi-class-100", "faster_rcnn_R_50_FPN_3x")
             
             # Create the final, unique directory for this specific run.
             challenger_output_dir = os.path.join(challenger_base_path, timestamp)
             
             # Prepare training args
-            train_script, train_args = self.prepare_training_command(annotations_path, challenger_output_dir)
+            train_module, train_args = self.prepare_training_command(annotations_path, challenger_output_dir)
 
             if train_args is None:
                 raise RuntimeError("Could not prepare the training arguments. Check that train.py and config files exist.")
@@ -809,16 +793,10 @@ class RetrainingThread(QThread):
             sys.stdout = line_emitter
             sys.stderr = line_emitter
             try:
-                # Redirect before importing train.py because Detectron2's
-                # setup_logger() binds to the active stream at import time.
-                spec = importlib.util.spec_from_file_location("_polyvision_train", train_script)
-                train_mod = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(train_mod)
                 redirected_handlers = self._redirect_logging_streams(line_emitter)
 
-                # Call main() directly — avoids launching a second PolyVision.exe
-                # when running as a frozen build.
-                train_mod.main(train_args)
+                # Call the bundled runtime directly; no external Python code is loaded.
+                train_module.main(train_args)
             finally:
                 self._restore_logging_streams(redirected_handlers)
                 line_emitter.flush()
@@ -906,7 +884,7 @@ class RetrainUI(QDialog):
         }
         self.dashboard_values = {}
         self.highlight_labels = {}
-        # Set project root for model path calculations
+        # The source repair script lives at project root; model paths use models_path().
         self.project_root = str(Path(__file__).resolve().parents[1])
         self.init_ui()
         self.load_data_summary()
@@ -1482,8 +1460,8 @@ class RetrainUI(QDialog):
             QMessageBox.warning(
                 self,
                 "GPU Repair Unavailable",
-                "Automatic GPU repair is only available for the source/venv release. "
-                "Packaged executable builds need a separate GPU-enabled build."
+                "Do not install CUDA Toolkit or run repair scripts for this packaged application.\n\n"
+                "Please contact your PolyVision support person for a corrected application build."
             )
             return
 
@@ -1494,6 +1472,19 @@ class RetrainUI(QDialog):
                 "GPU Repair Missing",
                 f"Repair script was not found:\n{repair_script}"
             )
+            return
+
+        confirmation = QMessageBox.question(
+            self,
+            "Technical Repair Confirmation",
+            "This repair is intended for a technical administrator working on a source installation.\n\n"
+            "It requires Microsoft C++ build tools, CUDA Toolkit 11.8/NVCC, and internet access. "
+            "It may update packages in the project virtual environment after validation succeeds.\n\n"
+            "Continue with the technical repair?",
+            QMessageBox.Yes | QMessageBox.Cancel,
+            QMessageBox.Cancel,
+        )
+        if confirmation != QMessageBox.Yes:
             return
 
         try:
@@ -1515,28 +1506,83 @@ class RetrainUI(QDialog):
 
     def maybe_offer_gpu_repair(self):
         report = diagnose_gpu_support()
-        if not should_offer_repair(report):
+        is_frozen = getattr(sys, "frozen", False)
+        policy = retraining_start_policy(report, is_frozen)
+        message = "\n".join(format_diagnostic_lines(report))
+
+        if policy == BLOCKED:
+            if is_frozen:
+                box = QMessageBox(self)
+                box.setIcon(QMessageBox.Critical)
+                box.setWindowTitle("Retraining Unavailable")
+                box.setText("PolyVision cannot safely start retraining on this computer.")
+                box.setInformativeText(
+                    "Do not install CUDA Toolkit or run repair scripts. "
+                    "Please take a screenshot of this message and contact your PolyVision "
+                    "support person for a corrected application build."
+                )
+                box.setDetailedText(message)
+                box.addButton(QMessageBox.Close)
+                box.exec_()
+                return False
+
+            box = QMessageBox(self)
+            box.setIcon(QMessageBox.Critical)
+            box.setWindowTitle("Retraining Runtime Repair Required")
+            box.setText("PolyVision cannot safely retrain on either CPU or GPU.")
+            if report.repair_recommended:
+                box.setInformativeText(
+                    "A technical administrator must repair this source installation before retraining. "
+                    "The repair requires Microsoft C++ build tools and CUDA Toolkit 11.8/NVCC."
+                )
+                repair_button = box.addButton("Open Technical Repair", QMessageBox.AcceptRole)
+                cancel_button = box.addButton(QMessageBox.Cancel)
+                box.setDefaultButton(cancel_button)
+            else:
+                box.setInformativeText(
+                    "Automatic GPU repair does not apply to this machine. "
+                    "Ask a technical administrator to repair the source retraining environment."
+                )
+                repair_button = None
+                box.addButton(QMessageBox.Close)
+            box.setDetailedText(message)
+            box.exec_()
+            if repair_button is not None and box.clickedButton() == repair_button:
+                self.launch_gpu_repair()
+            return False
+
+        if policy == READY:
             return True
 
-        message = "\n".join(format_diagnostic_lines(report))
         box = QMessageBox(self)
         box.setIcon(QMessageBox.Warning)
-        box.setWindowTitle("GPU Support Repair Available")
+        box.setWindowTitle("GPU Retraining Unavailable")
         box.setText(
-            "This machine appears to have NVIDIA GPU hardware, but PolyVision cannot use CUDA in this environment."
+            "PolyVision cannot use the GPU for retraining, but CPU retraining is available. "
+            "CPU retraining may take longer."
         )
-        box.setInformativeText(
-            f"{message}\n\n"
-            "You can repair GPU support now, continue this retraining run on CPU, or cancel."
-        )
-        repair_button = box.addButton("Repair GPU Support", QMessageBox.AcceptRole)
+        if policy == CPU_FALLBACK:
+            box.setInformativeText(
+                "Select Continue on CPU to start retraining now. "
+                "Do not install CUDA Toolkit or run repair scripts. "
+                "For GPU retraining, contact your PolyVision support person to check the "
+                "NVIDIA graphics driver and application build."
+            )
+            repair_button = None
+        else:
+            box.setInformativeText(
+                "You can continue on CPU now. A technical administrator can repair GPU support "
+                "for this source installation."
+            )
+            repair_button = box.addButton("Open Technical Repair", QMessageBox.AcceptRole)
+        box.setDetailedText(message)
         continue_button = box.addButton("Continue on CPU", QMessageBox.DestructiveRole)
         cancel_button = box.addButton(QMessageBox.Cancel)
-        box.setDefaultButton(repair_button)
+        box.setDefaultButton(continue_button)
         box.exec_()
 
         clicked = box.clickedButton()
-        if clicked == repair_button:
+        if repair_button is not None and clicked == repair_button:
             self.launch_gpu_repair()
             return False
         if clicked == continue_button:
@@ -1714,6 +1760,8 @@ class RetrainUI(QDialog):
                 self.status_health_label.setText("CPU Mode")
             elif status == HARDWARE_MISSING:
                 self.status_health_label.setText("CPU Mode")
+            elif status == RETRAINING_RUNTIME_BROKEN:
+                self.status_health_label.setText("Runtime Error")
             return
 
         if "Stage 1/4" in stripped:
@@ -2037,10 +2085,10 @@ class RetrainUI(QDialog):
         try:
             # Define base model directory and protected base model names
             if self.model_type == 'Binary':
-                base_model_dir = os.path.join(self.project_root, "Models", "SEAMaP-Binary-Full", "faster_rcnn_R_50_FPN_3x")
+                base_model_dir = models_path("SEAMaP-Binary-Full", "faster_rcnn_R_50_FPN_3x")
                 protected_base_model = "2025-10-01-03-07-35"  # Binary base model - NEVER DELETE
             else:
-                base_model_dir = os.path.join(self.project_root, "Models", "SEAMaP-Multi-class-100", "faster_rcnn_R_50_FPN_3x")
+                base_model_dir = models_path("SEAMaP-Multi-class-100", "faster_rcnn_R_50_FPN_3x")
                 protected_base_model = "2025-10-01-03-54-34"  # Multiclass base model - NEVER DELETE
             
             # Get challenger directory info

@@ -1,5 +1,11 @@
 import os
 import sys 
+
+if __name__ == "__main__" and "--diagnose-retraining" in sys.argv[1:]:
+    from retraining_runtime.diagnostic_cli import main as retraining_diagnostic_main
+
+    raise SystemExit(retraining_diagnostic_main(sys.argv[1:]))
+
 from PIL import Image
 from PyQt5 import QtGui, QtWidgets, QtMultimedia
 from PyQt5.QtGui import *
