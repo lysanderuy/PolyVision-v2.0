@@ -74,34 +74,73 @@ Key components:
 
 ## GPU retraining support
 
-PolyVision automatically checks for NVIDIA CUDA support when retraining starts.
-If CUDA-capable PyTorch and Detectron2 are installed correctly, retraining and
-the post-training benchmark use the GPU. If CUDA is unavailable, PolyVision
-falls back to CPU and logs the reason.
+> **Packaged application users:** Do not install CUDA Toolkit 11.8, NVCC, Python,
+> or Detectron2. The packaged application must already contain a working
+> retraining runtime. If GPU retraining is unavailable, continue on CPU when
+> PolyVision offers that option or contact your PolyVision support person for a
+> corrected application build.
 
-For source/venv installs, PolyVision can guide repair when NVIDIA hardware is
-detected but the Python ML stack is CPU-only or broken. The repair requires
-internet access and reinstalls PyTorch with CUDA 11.8 support:
+PolyVision automatically checks for NVIDIA CUDA support when retraining starts.
+The diagnostic validates PyTorch, Torchvision native operations, the Detectron2
+native extension, and CUDA build compatibility. If the complete CUDA stack is
+usable, retraining and the post-training benchmark use the GPU. CPU fallback is
+allowed only when the complete CPU retraining stack passes validation.
+
+See [GPU Retraining User Guide](GPU_RETRAINING_USER_GUIDE.md) for plain-language
+instructions for packaged users and a separate technical repair procedure for
+administrators and developers.
+
+Run the same validation used by source and packaged builds:
 
 ```powershell
-python -m pip install --upgrade --force-reinstall torch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 --index-url https://download.pytorch.org/whl/cu118
-python -m pip install -e detectron2
-python repair_gpu_env.py
+python UI\PolyVisionMain.py --diagnose-retraining
+python UI\PolyVisionMain.py --diagnose-retraining --require-gpu
+python UI\PolyVisionMain.py --diagnose-retraining --require-gpu --json
 ```
 
-You can also launch the guided repair script from the project root:
+The commands return exit code `0` when the requested runtime is ready, `1` when
+retraining is unavailable, and `2` when retraining is available but the
+`--require-gpu` requirement is not met.
+
+For source/venv installs, a technical administrator or developer can repair the
+environment when NVIDIA hardware is detected but the Python ML stack is
+CPU-only or broken. This is not an end-user repair. It requires internet access,
+MSVC C++ build tools, and the CUDA 11.8 toolkit/NVCC:
 
 ```powershell
+.\repair_gpu_env.bat --preflight-only
 .\repair_gpu_env.bat
 ```
 
-Close PolyVision before continuing in the repair window, then restart PolyVision
-after repair completes. If a repair is interrupted, run `.\repair_gpu_env.bat`
-again from the project root; it is safe to rerun and writes details to
-`repair_gpu_env.log`.
+The repair performs all prerequisite checks first, builds and validates a
+replacement Detectron2 wheel in a temporary environment, and changes the active
+venv only after that validation passes. Close PolyVision before continuing in
+the repair window, then restart PolyVision after repair completes. Details are
+written to `repair_gpu_env.log`.
 
-Packaged PyInstaller `.exe` builds cannot be repaired in place this way; they
-need a separate GPU-enabled build or an external managed environment.
+Packaged PyInstaller `.exe` builds cannot be repaired in place this way. Do not
+ask packaged users to install CUDA Toolkit 11.8 or run `repair_gpu_env.bat`.
+They need a corrected GPU-enabled build. A packaged build with a valid CPU stack
+can continue retraining on CPU; a packaged build with a broken retraining
+runtime blocks retraining.
+
+Before handing a build to packaging, require this command to pass:
+
+```powershell
+python UI\PolyVisionMain.py --diagnose-retraining --require-gpu
+```
+
+After packaging, run the equivalent command against `PolyVision.exe` to catch
+missing native extensions or DLLs before distribution. Retraining writes new
+models under the external `Models` workspace, so that workspace must remain
+writable in the installed application layout.
+
+Detectron2 source builds may include kernels only for the build machine's GPU.
+For a distributed GPU build, the packaging owner must set
+`TORCH_CUDA_ARCH_LIST` for every supported NVIDIA GPU architecture and run the
+packaged diagnostic on representative target hardware. The diagnostic executes
+a Detectron2 CUDA native operation so unsupported architectures fail before
+retraining starts.
 
 ## Running the application
 

@@ -5,7 +5,6 @@ import time
 import argparse
 import json
 import sys
-from pathlib import Path
 import torch
 import detectron2
 from detectron2 import model_zoo 
@@ -15,11 +14,7 @@ from detectron2.data.datasets import register_coco_instances
 from detectron2.data import DatasetCatalog, MetadataCatalog, build_detection_test_loader
 from detectron2.evaluation import COCOEvaluator, inference_on_dataset
 
-RETRAINING_DIR = Path(__file__).resolve().parents[1] / "Models" / "Retraining"
-if str(RETRAINING_DIR) not in sys.path:
-    sys.path.insert(0, str(RETRAINING_DIR))
-
-from gpu_diagnostics import diagnose_gpu_support, format_diagnostic_lines, select_training_device
+from retraining_runtime.gpu_diagnostics import diagnose_gpu_support, format_diagnostic_lines, select_training_device
 
 def main(args):
     print(f"--- Starting Benchmark for Model: {args.model_path} ---")
