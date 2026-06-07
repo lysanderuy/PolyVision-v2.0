@@ -90,6 +90,9 @@ See [GPU Retraining User Guide](GPU_RETRAINING_USER_GUIDE.md) for plain-language
 instructions for packaged users and a separate technical repair procedure for
 administrators and developers.
 
+See [GPU Packaging Guide](GPU_PACKAGING_GUIDE.md) for the GPU-machine packaging
+handoff, PyInstaller gates, and `TORCH_CUDA_ARCH_LIST` requirements.
+
 Run the same validation used by source and packaged builds:
 
 ```powershell

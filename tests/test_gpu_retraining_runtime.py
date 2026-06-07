@@ -250,6 +250,31 @@ class PackagingReadinessContractTests(unittest.TestCase):
         wheel_build = source.index('"%TEMP_PYTHON%" -m pip wheel')
         self.assertLess(temp_pins, wheel_build)
 
+    def test_pyinstaller_spec_collects_native_ml_runtime_without_upx(self):
+        source = (PROJECT_ROOT / "PolyVision.spec").read_text(encoding="utf-8")
+        self.assertIn("collect_dynamic_libs", source)
+        self.assertIn("collect_submodules", source)
+        self.assertIn('"retraining_runtime"', source)
+        self.assertIn('"detectron2"', source)
+        self.assertIn('"torchvision.ops"', source)
+        self.assertIn("detectron2._C", source)
+        self.assertIn("upx=False", source)
+
+    def test_build_script_gates_source_and_packaged_gpu_diagnostics(self):
+        source = (PROJECT_ROOT / "build_exe.bat").read_text(encoding="utf-8")
+        source_gate = source.index(
+            "venv\\Scripts\\python.exe UI\\PolyVisionMain.py --diagnose-retraining --require-gpu --json"
+        )
+        build_command = source.index("pyinstaller --clean --noconfirm PolyVision.spec")
+        packaged_gate = source.index(
+            "dist\\PolyVision\\PolyVision.exe --diagnose-retraining --require-gpu --json"
+        )
+        success_message = source.index("Build and packaged GPU diagnostics completed successfully.")
+        self.assertLess(source_gate, build_command)
+        self.assertLess(build_command, packaged_gate)
+        self.assertLess(packaged_gate, success_message)
+        self.assertIn("goto fail", source)
+
 
 class RepairPreflightTests(unittest.TestCase):
     def test_cuda_11_8_msvc_version_range(self):
