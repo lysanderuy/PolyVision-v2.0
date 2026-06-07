@@ -18,6 +18,11 @@ call venv\Scripts\activate.bat
 :: Install build requirements
 echo Installing build requirements...
 pip install -r build_requirements.txt
+if %errorlevel% neq 0 (
+    echo Error: Build requirements installation failed!
+    pause
+    exit /b 1
+)
 
 :: Verify PyInstaller installation
 echo Verifying PyInstaller installation...
@@ -30,6 +35,8 @@ if %errorlevel% neq 0 (
 
 echo.
 echo ===============================================
-echo Setup complete! You can now run build_exe.bat
+echo Setup complete!
+echo Before running build_exe.bat, make sure this GPU build machine passes:
+echo venv\Scripts\python.exe UI\PolyVisionMain.py --diagnose-retraining --require-gpu --json
 echo ===============================================
 pause
