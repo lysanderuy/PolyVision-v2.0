@@ -4,6 +4,7 @@ import os
 import sys
 from pathlib import Path
 import detectron2
+from PyInstaller.utils.hooks import collect_dynamic_libs, collect_submodules
 
 # Get the project root directory
 try:
@@ -49,7 +50,10 @@ hiddenimports = [
     'detectron2.data',
     'detectron2.utils.visualizer',
     'torch',
+    'torch._C',
     'torchvision',
+    'torchvision._C',
+    'detectron2._C',
     'yaml',
     'sqlite3',
     'json',
@@ -63,8 +67,18 @@ hiddenimports = [
     'tqdm',
 ]
 
-# Binaries - let PyInstaller auto-detect most, but add specific ones if needed
+# Pull in every Detectron2 submodule so PyInstaller does not miss lazily
+# imported model/config/data modules used during retraining.
+hiddenimports += collect_submodules('detectron2')
+
+# Binaries - explicitly collect native extensions and their bundled DLLs.
+# PyInstaller auto-detection does not reliably grab detectron2._C.pyd or the
+# Torch/CUDA runtime DLLs, which are required for GPU retraining (and for the
+# CPU retraining stack to load at all).
 binaries = []
+binaries += collect_dynamic_libs('torch')
+binaries += collect_dynamic_libs('torchvision')
+binaries += collect_dynamic_libs('detectron2')
 
 a = Analysis(
     [str(ui_path / 'PolyVisionMain.py')],  # Main script
@@ -100,7 +114,7 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,
     upx_exclude=[],
     console=True,
     disable_windowed_traceback=False,
@@ -117,7 +131,7 @@ coll = COLLECT(
     a.zipfiles,
     a.datas,
     strip=False,
-    upx=True,
+    upx=False,
     upx_exclude=[],
     name='PolyVision',
 )
