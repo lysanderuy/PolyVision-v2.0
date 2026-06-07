@@ -4,6 +4,12 @@ import os
 import sys
 from pathlib import Path
 import detectron2
+from PyInstaller.utils.hooks import (
+    collect_data_files,
+    collect_dynamic_libs,
+    collect_submodules,
+    copy_metadata,
+)
 
 # Get the project root directory
 try:
@@ -30,6 +36,17 @@ detectron2_configs_dir = Path(detectron2.__file__).resolve().parent / "model_zoo
 if detectron2_configs_dir.exists():
     datas.append((str(detectron2_configs_dir), "detectron2/model_zoo/configs"))
 
+for package in ("torch", "torchvision", "detectron2", "fvcore", "iopath", "pycocotools"):
+    try:
+        datas += copy_metadata(package)
+    except Exception as exc:
+        print(f"WARNING: could not collect metadata for {package}: {exc}")
+
+try:
+    datas += collect_data_files("detectron2", includes=["model_zoo/configs/**/*"])
+except Exception as exc:
+    print(f"WARNING: could not collect Detectron2 data files: {exc}")
+
 # Hidden imports for modules that PyInstaller might miss
 hiddenimports = [
     'PyQt5.QtCore',
@@ -43,6 +60,7 @@ hiddenimports = [
     'serial',
     'serial.tools.list_ports',
     'detectron2',
+    'detectron2._C',
     'detectron2.engine',
     'detectron2.config',
     'detectron2.model_zoo',
@@ -63,8 +81,22 @@ hiddenimports = [
     'tqdm',
 ]
 
-# Binaries - let PyInstaller auto-detect most, but add specific ones if needed
+for package in ("retraining_runtime", "detectron2", "torchvision.ops"):
+    try:
+        hiddenimports += collect_submodules(package)
+    except Exception as exc:
+        print(f"WARNING: could not collect hidden imports for {package}: {exc}")
+
+# Native ML binaries. The post-build diagnostic is still mandatory because
+# missing CUDA/Torch/Detectron2 DLLs may only surface in the frozen app.
 binaries = []
+for package in ("torch", "torchvision", "detectron2"):
+    try:
+        binaries += collect_dynamic_libs(package)
+    except Exception as exc:
+        print(f"WARNING: could not collect dynamic libraries for {package}: {exc}")
+
+upx_exclude = ["*.dll", "*.pyd", "torch*", "torchvision*", "detectron2*"]
 
 a = Analysis(
     [str(ui_path / 'PolyVisionMain.py')],  # Main script
@@ -100,8 +132,8 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
-    upx_exclude=[],
+    upx=False,
+    upx_exclude=upx_exclude,
     console=True,
     disable_windowed_traceback=False,
     argv_emulation=False,
@@ -117,7 +149,7 @@ coll = COLLECT(
     a.zipfiles,
     a.datas,
     strip=False,
-    upx=True,
-    upx_exclude=[],
+    upx=False,
+    upx_exclude=upx_exclude,
     name='PolyVision',
 )
