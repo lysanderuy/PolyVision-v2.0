@@ -25,10 +25,13 @@ Key components:
 - `UI/` – main application code and GUI modules
 - `Models/` – training scripts, dataset tools, evaluation code, and experiments
 - `requirements.txt` – Python dependencies for the application
-- `build_requirements.txt` – additional dependencies required for building the executable
-- `build_exe.bat` – script to build the standalone executable via PyInstaller
-- `setup_build.bat` – environment setup script for the build process
-- `PolyVision.spec` / `UI/PolyVisionMain.spec` – PyInstaller spec files
+- `docs/` – packaging and GPU retraining guides
+- `packaging/` – build and GPU-repair tooling:
+  - `build_exe.bat` – builds the standalone executable via PyInstaller
+  - `setup_build.bat` – environment setup script for the build process
+  - `build_requirements.txt` – additional dependencies required for building the executable
+  - `PolyVision.spec` – PyInstaller spec file
+  - `repair_gpu_env.bat` / `repair_gpu_env.py` – source-install GPU environment repair
 
 > **Note:** `detectron2/` is not included in this repository. It must be cloned separately — see Installation.
 
@@ -86,11 +89,11 @@ native extension, and CUDA build compatibility. If the complete CUDA stack is
 usable, retraining and the post-training benchmark use the GPU. CPU fallback is
 allowed only when the complete CPU retraining stack passes validation.
 
-See [GPU Retraining User Guide](GPU_RETRAINING_USER_GUIDE.md) for plain-language
+See [GPU Retraining User Guide](docs/GPU_RETRAINING_USER_GUIDE.md) for plain-language
 instructions for packaged users and a separate technical repair procedure for
 administrators and developers.
 
-See [GPU Packaging Guide](GPU_PACKAGING_GUIDE.md) for the GPU-machine packaging
+See [GPU Packaging Guide](docs/GPU_PACKAGING_GUIDE.md) for the GPU-machine packaging
 handoff, PyInstaller gates, and `TORCH_CUDA_ARCH_LIST` requirements.
 
 Run the same validation used by source and packaged builds:
@@ -111,15 +114,15 @@ CPU-only or broken. This is not an end-user repair. It requires internet access,
 MSVC C++ build tools, and the CUDA 11.8 toolkit/NVCC:
 
 ```powershell
-.\repair_gpu_env.bat --preflight-only
-.\repair_gpu_env.bat
+.\packaging\repair_gpu_env.bat --preflight-only
+.\packaging\repair_gpu_env.bat
 ```
 
 The repair performs all prerequisite checks first, builds and validates a
 replacement Detectron2 wheel in a temporary environment, and changes the active
 venv only after that validation passes. Close PolyVision before continuing in
 the repair window, then restart PolyVision after repair completes. Details are
-written to `repair_gpu_env.log`.
+written to `logs/repair_gpu_env.log`.
 
 Packaged PyInstaller `.exe` builds cannot be repaired in place this way. Do not
 ask packaged users to install CUDA Toolkit 11.8 or run `repair_gpu_env.bat`.

@@ -1465,7 +1465,7 @@ class RetrainUI(QDialog):
             )
             return
 
-        repair_script = Path(self.project_root) / "repair_gpu_env.bat"
+        repair_script = Path(self.project_root) / "packaging" / "repair_gpu_env.bat"
         if not repair_script.exists():
             QMessageBox.critical(
                 self,

@@ -18,8 +18,10 @@ try:
 except NameError:
     spec_path = Path(sys.argv[0]).resolve()
 
-project_root = spec_path.parent
+# This spec lives in packaging/, so the project root is one level up.
+project_root = spec_path.parent.parent
 ui_path = project_root / "UI"
+docs_path = project_root / "docs"
 
 # Data files to include
 # Models/ is NOT bundled here; it stays external next to PolyVision.exe
@@ -31,6 +33,7 @@ datas = [
 datas += [(str(path), ".") for path in ui_path.glob("*.ui")]
 datas += [(str(path), ".") for path in project_root.glob("*.txt")]
 datas += [(str(path), ".") for path in project_root.glob("*.md")]
+datas += [(str(path), ".") for path in docs_path.glob("*.md")]
 datas += [(str(path), ".") for path in ui_path.glob("*.json")]
 
 detectron2_configs_dir = Path(detectron2.__file__).resolve().parent / "model_zoo" / "configs"

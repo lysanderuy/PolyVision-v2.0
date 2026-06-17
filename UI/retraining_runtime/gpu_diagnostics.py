@@ -442,7 +442,7 @@ def format_diagnostic_lines(report: GpuDiagnostic) -> List[str]:
     if report.repair_recommended:
         lines.append(
             "Repair guidance: packaged users need a corrected application build; "
-            "technical source-install administrators can run repair_gpu_env.bat."
+            "technical source-install administrators can run packaging\\repair_gpu_env.bat."
         )
     if report.errors:
         lines.append(f"Diagnostic notes: {' | '.join(report.errors)}")

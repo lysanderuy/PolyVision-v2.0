@@ -3,6 +3,9 @@ echo ===============================================
 echo Building PolyVision Executable
 echo ===============================================
 
+:: This script lives in packaging\; run everything from the project root
+pushd "%~dp0.."
+
 :: Activate virtual environment
 echo Activating virtual environment...
 call venv\Scripts\activate.bat
@@ -33,7 +36,7 @@ if exist dist rmdir /s /q dist
 
 :: Build the executable
 echo Building executable with PyInstaller...
-pyinstaller --clean --noconfirm PolyVision.spec
+pyinstaller --clean --noconfirm "%~dp0PolyVision.spec"
 if errorlevel 1 goto fail
 
 :: Check if build was successful
@@ -87,6 +90,7 @@ if exist "dist\PolyVision\PolyVision.exe" (
     goto fail
 )
 
+popd
 pause
 exit /b 0
 
@@ -95,5 +99,6 @@ echo.
 echo ===============================================
 echo Build failed.
 echo ===============================================
+popd
 pause
 exit /b 1

@@ -57,7 +57,7 @@ the packaged application do not compile Detectron2.
 From the project root:
 
 ```powershell
-.\repair_gpu_env.bat --preflight-only
+.\packaging\repair_gpu_env.bat --preflight-only
 ```
 
 The preflight makes no package changes. It checks:
@@ -82,7 +82,7 @@ compatible `14.3x` toolset for the Detectron2 build.
 Close PolyVision, then run:
 
 ```powershell
-.\repair_gpu_env.bat
+.\packaging\repair_gpu_env.bat
 ```
 
 The repair first builds and validates a replacement Detectron2 wheel in a
