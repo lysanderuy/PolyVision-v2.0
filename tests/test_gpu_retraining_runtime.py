@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-UI_DIR = PROJECT_ROOT / "UI"
+UI_DIR = PROJECT_ROOT / "ui"
 if str(UI_DIR) not in sys.path:
     sys.path.insert(0, str(UI_DIR))
 
@@ -219,7 +219,7 @@ class PackagingReadinessContractTests(unittest.TestCase):
         self.assertLess(diagnostic_guard, heavy_import)
 
     def test_retraining_ui_does_not_dynamically_load_external_python(self):
-        source = (UI_DIR / "Retrain.py").read_text(encoding="utf-8")
+        source = (UI_DIR / "retrain.py").read_text(encoding="utf-8")
         self.assertNotIn("spec_from_file_location", source)
         self.assertIn("from retraining_runtime import train as retraining_train", source)
 
@@ -263,7 +263,7 @@ class PackagingReadinessContractTests(unittest.TestCase):
     def test_build_script_gates_source_and_packaged_gpu_diagnostics(self):
         source = (PROJECT_ROOT / "packaging" / "build_exe.bat").read_text(encoding="utf-8")
         source_gate = source.index(
-            "venv\\Scripts\\python.exe UI\\PolyVisionMain.py --diagnose-retraining --require-gpu --json"
+            "venv\\Scripts\\python.exe ui\\PolyVisionMain.py --diagnose-retraining --require-gpu --json"
         )
         build_command = source.index('pyinstaller --clean --noconfirm "%~dp0PolyVision.spec"')
         packaged_gate = source.index(

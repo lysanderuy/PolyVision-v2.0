@@ -293,8 +293,8 @@ def delete_data(database_name, particle_name):
 
 
 def main():
-    create_retraining_database("E:/THESIS/PolyVision/UI")
-    count_rows_in_retraining_database("E:/THESIS/PolyVision/UI")
+    create_retraining_database("E:/THESIS/PolyVision/ui")
+    count_rows_in_retraining_database("E:/THESIS/PolyVision/ui")
 
 if __name__ == "__main__":
     main()

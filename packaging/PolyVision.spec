@@ -20,7 +20,7 @@ except NameError:
 
 # This spec lives in packaging/, so the project root is one level up.
 project_root = spec_path.parent.parent
-ui_path = project_root / "UI"
+ui_path = project_root / "ui"
 docs_path = project_root / "docs"
 
 # Data files to include

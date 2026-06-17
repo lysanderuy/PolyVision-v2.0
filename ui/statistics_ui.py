@@ -12,9 +12,9 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import sqlite3
-from Database import *
+from database import *
 import numpy as np
-from Charts import *
+from charts import *
 from app_paths import resource_path
 
 class StatisticsUI(QDialog):

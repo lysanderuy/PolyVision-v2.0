@@ -121,7 +121,7 @@ echo Validating the replacement wheel in the temporary environment...
 if errorlevel 1 goto fail
 
 pushd "%TEMP_REPAIR_DIR%"
-set "PYTHONPATH=%PROJECT_ROOT%\UI"
+set "PYTHONPATH=%PROJECT_ROOT%\ui"
 "%TEMP_PYTHON%" -m retraining_runtime.diagnostic_cli --diagnose-retraining --require-gpu >> "%LOG_FILE%" 2>&1
 set "TEMP_DIAGNOSTIC_ERROR=%ERRORLEVEL%"
 popd
@@ -150,7 +150,7 @@ if errorlevel 1 goto fail
 echo.
 echo Verifying the active retraining runtime...
 pushd "%TEMP_REPAIR_DIR%"
-set "PYTHONPATH=%PROJECT_ROOT%\UI"
+set "PYTHONPATH=%PROJECT_ROOT%\ui"
 "%PROJECT_ROOT%\venv\Scripts\python.exe" -m retraining_runtime.diagnostic_cli --diagnose-retraining --require-gpu >> "%LOG_FILE%" 2>&1
 set "ACTIVE_DIAGNOSTIC_ERROR=%ERRORLEVEL%"
 popd
