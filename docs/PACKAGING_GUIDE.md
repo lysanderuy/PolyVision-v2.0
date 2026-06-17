@@ -26,7 +26,7 @@ Otherwise it falls back to CPU when the CPU retraining stack is valid.
 Before packaging, the source environment must pass:
 
 ```powershell
-venv\Scripts\python.exe UI\PolyVisionMain.py --diagnose-retraining --require-gpu --json
+venv\Scripts\python.exe ui\PolyVisionMain.py --diagnose-retraining --require-gpu --json
 $LASTEXITCODE
 ```
 
@@ -62,7 +62,7 @@ After setting the architecture list, rebuild and validate the source runtime:
 ```powershell
 .\packaging\repair_gpu_env.bat --preflight-only
 .\packaging\repair_gpu_env.bat
-venv\Scripts\python.exe UI\PolyVisionMain.py --diagnose-retraining --require-gpu --json
+venv\Scripts\python.exe ui\PolyVisionMain.py --diagnose-retraining --require-gpu --json
 ```
 
 ## Build

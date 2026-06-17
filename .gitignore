@@ -26,21 +26,21 @@ Models/SEAMaP-Multi-class-100/
 Models/SEAMaP-Multi-class-100-1/
 
 # Retraining datasets (large image collections)
-Models/Retraining/original_datasets/
-Models/retrainingImages/
+Models/retraining/original_datasets/
+Models/retraining_images/
 Models/retraining_data/
 
 # Evaluation artifacts
 Models/dev/evaluation_output/
 
 # User databases and runtime-generated data
-UI/main_database.db
-UI/retrain_images.db
-UI/retrainingImages/
-UI/ASD/
-UI/Test/
-UI/widget_screenshot.png
-UI/PolyVisionMain.exe
+ui/main_database.db
+ui/retrain_images.db
+ui/retraining_images/
+ui/ASD/
+ui/Test/
+ui/widget_screenshot.png
+ui/PolyVisionMain.exe
 
 # Generated/misc files
 Models/dev/visualization.jpg

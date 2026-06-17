@@ -43,7 +43,7 @@ echo.
 echo ===============================================
 echo Setup complete!
 echo Before running build_exe.bat, make sure this GPU build machine passes:
-echo venv\Scripts\python.exe UI\PolyVisionMain.py --diagnose-retraining --require-gpu --json
+echo venv\Scripts\python.exe ui\PolyVisionMain.py --diagnose-retraining --require-gpu --json
 echo ===============================================
 popd
 pause

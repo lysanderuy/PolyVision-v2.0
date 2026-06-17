@@ -98,7 +98,7 @@ def storage_path(*relative_parts: str) -> str:
 def _exe_dir() -> Path:
     """
     Directory that contains PolyVision.exe when frozen, or the project
-    root (one level above UI/) during development.
+    root (one level above ui/) during development.
     """
     if _IS_FROZEN:
         return Path(sys.executable).parent

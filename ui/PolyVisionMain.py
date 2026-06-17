@@ -24,25 +24,25 @@ import math
 import serial
 import serial.tools.list_ports
 import time
-from Statistics import StatisticsUI
-from Images import ImagesUI
-from NewFile import NewFileUI
-from Retrain import RetrainUI
-from Database import *
-from Capture import *
-from Settings import SettingsUI
+from statistics_ui import StatisticsUI
+from images import ImagesUI
+from new_file import NewFileUI
+from retrain import RetrainUI
+from database import *
+from capture import *
+from settings import SettingsUI
 import json
 from PIL import ImageEnhance
-from OkayMessageBox import *
-from Detect import DetectUI
-from GRBL import GrblUI
+from okay_message_box import *
+from detect import DetectUI
+from grbl import GrblUI
 from app_paths import user_settings_path, resource_path, app_storage_dir, models_path
-from LiveDetect import *
-from CalibrationUI import CalibrateUI
-from CoordinateUI import CoordinateUI
+from live_detect import *
+from calibration_ui import CalibrateUI
+from coordinate_ui import CoordinateUI
 import threading
-from VerificationMessageBox import VerificationBox
-from AnnotationReviewDialog import AnnotationReviewDialog
+from verification_message_box import VerificationBox
+from annotation_review_dialog import AnnotationReviewDialog
 from PIL.ImageQt import ImageQt
 from collections import deque
 import winsound

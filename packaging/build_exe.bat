@@ -13,7 +13,7 @@ if errorlevel 1 goto fail
 
 echo.
 echo Verifying source GPU retraining runtime before packaging...
-venv\Scripts\python.exe UI\PolyVisionMain.py --diagnose-retraining --require-gpu --json
+venv\Scripts\python.exe ui\PolyVisionMain.py --diagnose-retraining --require-gpu --json
 if errorlevel 1 (
     echo.
     echo ERROR: Source runtime is not GPU-ready. Do not package from this environment.
@@ -78,7 +78,7 @@ if exist "dist\PolyVision\PolyVision.exe" (
     set /p create_shortcut="Create desktop shortcut? (y/n): "
     if /i "%create_shortcut%"=="y" (
         echo Creating desktop shortcut...
-        powershell "$WshShell = New-Object -ComObject WScript.Shell; $Shortcut = $WshShell.CreateShortcut('%USERPROFILE%\Desktop\PolyVision.lnk'); $Shortcut.TargetPath = '%CD%\dist\PolyVision\PolyVision.exe'; $Shortcut.WorkingDirectory = '%CD%\dist\PolyVision'; $Shortcut.IconLocation = '%CD%\UI\res\PolyVisionLogo.ico'; $Shortcut.Save()"
+        powershell "$WshShell = New-Object -ComObject WScript.Shell; $Shortcut = $WshShell.CreateShortcut('%USERPROFILE%\Desktop\PolyVision.lnk'); $Shortcut.TargetPath = '%CD%\dist\PolyVision\PolyVision.exe'; $Shortcut.WorkingDirectory = '%CD%\dist\PolyVision'; $Shortcut.IconLocation = '%CD%\ui\res\PolyVisionLogo.ico'; $Shortcut.Save()"
         echo Desktop shortcut created!
     )
 

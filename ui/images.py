@@ -17,7 +17,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QAction, QFileDialog, QIn
 from PyQt5 import QtCore
 from PyQt5.QtCore import *
 from PyQt5.uic import loadUi
-from Database import *
+from database import *
 from functools import partial
 from app_paths import resource_path
 

@@ -95,7 +95,7 @@ Details are written to `logs/repair_gpu_env.log`.
 From the project root:
 
 ```powershell
-venv\Scripts\python.exe UI\PolyVisionMain.py --diagnose-retraining --require-gpu --json
+venv\Scripts\python.exe ui\PolyVisionMain.py --diagnose-retraining --require-gpu --json
 ```
 
 Do not package or distribute the application unless the command exits

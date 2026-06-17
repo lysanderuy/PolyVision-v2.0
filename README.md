@@ -24,7 +24,7 @@ Key components:
 
 ```
 .
-├── UI/                  # main application code and GUI modules
+├── ui/                  # main application code and GUI modules
 ├── Models/              # training scripts, dataset tools, evaluation, experiments
 │                        #   (incl. Models/archive/ for earlier iterations)
 ├── tests/               # automated tests (e.g. GPU retraining runtime checks)
@@ -109,10 +109,10 @@ Models/
 
 ## Running the application
 
-Start the main application from the `UI` directory:
+Start the main application from the `ui` directory:
 
 ```powershell
-cd UI
+cd ui
 python PolyVisionMain.py
 ```
 
@@ -124,11 +124,11 @@ validates, retraining and the post-training benchmark run on the GPU; otherwise
 PolyVision falls back to CPU when a valid CPU stack is available.
 
 To check the runtime on a source/venv install, run this from the repository root
-(note the `UI\` path prefix, unlike the application itself, which is launched
-from inside the `UI` directory):
+(note the `ui\` path prefix, unlike the application itself, which is launched
+from inside the `ui` directory):
 
 ```powershell
-python UI\PolyVisionMain.py --diagnose-retraining --require-gpu
+python ui\PolyVisionMain.py --diagnose-retraining --require-gpu
 ```
 
 Exit code `0` = requested runtime ready, `1` = retraining unavailable, `2` =
