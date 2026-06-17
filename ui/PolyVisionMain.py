@@ -290,7 +290,7 @@ class Ui_MainWindow(QMainWindow):
 
         
     def retrainSave(self, frame, annotations, is_microplastic=None):
-        save_path = models_path("retrainingImages")
+        save_path = models_path("retraining_images")
         if not os.path.exists(save_path):
             os.makedirs(save_path)
         # Get the current row number

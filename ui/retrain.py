@@ -228,7 +228,7 @@ def import_coco_data(image_dir, json_path, progress_callback):
     Processes a COCO dataset and imports it into the project's retraining database.
     Returns the number of images successfully imported.
     """
-    target_img_dir = models_path("retrainingImages")
+    target_img_dir = models_path("retraining_images")
     db_path = storage_path("retrain_images.db")
     os.makedirs(target_img_dir, exist_ok=True)
     
@@ -633,7 +633,7 @@ class RetrainingThread(QThread):
         annotation_id_offset = max_ann_id + 1
         new_annotations_count = 0
         for i, (image_name, is_mp, bbox_str, _) in enumerate(new_data_from_db):
-            image_path = models_path("retrainingImages", image_name)
+            image_path = models_path("retraining_images", image_name)
             if not os.path.exists(image_path):
                 self.log_update.emit(f"Warning: Image file not found, skipping: {image_path}")
                 continue
@@ -1997,7 +1997,7 @@ class RetrainUI(QDialog):
             promoted_count = 0
 
             for i, (image_name, is_mp, bbox_str, _) in enumerate(used_data):
-                src_path = models_path("retrainingImages", image_name)
+                src_path = models_path("retraining_images", image_name)
                 if not os.path.exists(src_path):
                     self.log_view.append(f"Warning: Image not found, skipping: {image_name}")
                     continue
@@ -2062,7 +2062,7 @@ class RetrainUI(QDialog):
         self.log_view.append("\n--- Cleaning up retraining data... ---")
 
         db_path = storage_path('retrain_images.db')
-        img_dir = models_path("retrainingImages")
+        img_dir = models_path("retraining_images")
 
         try:
             if self.model_type == 'Binary':
@@ -2286,7 +2286,7 @@ class RetrainUI(QDialog):
         
         if reply == QMessageBox.Yes:
             db_path = storage_path('retrain_images.db')
-            img_dir = models_path("retrainingImages")
+            img_dir = models_path("retraining_images")
             
             # Delete the database file
             if os.path.exists(db_path):
