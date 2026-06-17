@@ -22,17 +22,21 @@ Key components:
 
 ## Repository structure
 
-- `UI/` – main application code and GUI modules
-- `Models/` – training scripts, dataset tools, evaluation code, and experiments (including `Models/archive/` for earlier training iterations)
-- `tests/` – automated tests (e.g. GPU retraining runtime checks)
-- `requirements.txt` – Python dependencies for the application
-- `docs/` – packaging and GPU retraining guides
-- `packaging/` – build and GPU-repair tooling:
-  - `build_exe.bat` – builds the standalone executable via PyInstaller
-  - `setup_build.bat` – environment setup script for the build process
-  - `build_requirements.txt` – additional dependencies required for building the executable
-  - `PolyVision.spec` – PyInstaller spec file
-  - `repair_gpu_env.bat` / `repair_gpu_env.py` – source-install GPU environment repair
+```
+.
+├── UI/                  # main application code and GUI modules
+├── Models/              # training scripts, dataset tools, evaluation, experiments
+│                        #   (incl. Models/archive/ for earlier iterations)
+├── tests/               # automated tests (e.g. GPU retraining runtime checks)
+├── docs/                # packaging and GPU retraining guides
+├── packaging/           # build and GPU-repair tooling
+│   ├── build_exe.bat            # builds the standalone .exe via PyInstaller
+│   ├── setup_build.bat          # build environment setup
+│   ├── build_requirements.txt   # extra deps needed to build the .exe
+│   ├── PolyVision.spec          # PyInstaller spec file
+│   └── repair_gpu_env.bat/.py   # source-install GPU environment repair
+└── requirements.txt     # Python dependencies for the application
+```
 
 > **Note:** `detectron2/` is not included in this repository. It must be cloned separately — see Installation.
 
@@ -97,10 +101,10 @@ The final layout should look like this:
 
 ```
 Models/
-  SEAMaP-Binary-Full/
-  SEAMaP-Binary-Full-6/
-  SEAMaP-Multi-class-100/
-  SEAMaP-Multi-class-100-1/
+├── SEAMaP-Binary-Full/
+├── SEAMaP-Binary-Full-6/
+├── SEAMaP-Multi-class-100/
+└── SEAMaP-Multi-class-100-1/
 ```
 
 ## Running the application
