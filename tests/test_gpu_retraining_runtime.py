@@ -224,9 +224,9 @@ class PackagingReadinessContractTests(unittest.TestCase):
         self.assertIn("from retraining_runtime import train as retraining_train", source)
 
     def test_repair_preflight_runs_before_active_pip_changes(self):
-        source = (PROJECT_ROOT / "repair_gpu_env.bat").read_text(encoding="utf-8")
+        source = (PROJECT_ROOT / "packaging" / "repair_gpu_env.bat").read_text(encoding="utf-8")
         build_environment = source.index("call :prepare_build_environment")
-        preflight = source.index("repair_gpu_env.py --preflight-repair")
+        preflight = source.index("repair_gpu_env.py\" --preflight-repair")
         active_change = source.index('"venv\\Scripts\\python.exe" -m pip install')
         self.assertLess(build_environment, preflight)
         self.assertLess(preflight, active_change)
@@ -236,12 +236,12 @@ class PackagingReadinessContractTests(unittest.TestCase):
         self.assertIn("VsDevCmd.bat", source)
 
     def test_repair_only_cleans_temporary_detectron2_artifacts(self):
-        source = (PROJECT_ROOT / "repair_gpu_env.bat").read_text(encoding="utf-8")
+        source = (PROJECT_ROOT / "packaging" / "repair_gpu_env.bat").read_text(encoding="utf-8")
         self.assertIn(r'%TEMP_REPAIR_DIR%\detectron2\build', source)
         self.assertNotIn('if exist "detectron2\\build" rmdir', source.lower())
 
     def test_repair_uses_legacy_build_tooling_and_matching_compatibility_pins(self):
-        source = (PROJECT_ROOT / "repair_gpu_env.bat").read_text(encoding="utf-8")
+        source = (PROJECT_ROOT / "packaging" / "repair_gpu_env.bat").read_text(encoding="utf-8")
         self.assertIn("setuptools==65.5.0", source)
         self.assertIn("set \"COMPAT_PACKAGES=numpy==1.25.2 Pillow==8.4.0", source)
         self.assertIn('set "DISTUTILS_USE_SDK=1"', source)
@@ -251,7 +251,7 @@ class PackagingReadinessContractTests(unittest.TestCase):
         self.assertLess(temp_pins, wheel_build)
 
     def test_pyinstaller_spec_collects_native_ml_runtime_without_upx(self):
-        source = (PROJECT_ROOT / "PolyVision.spec").read_text(encoding="utf-8")
+        source = (PROJECT_ROOT / "packaging" / "PolyVision.spec").read_text(encoding="utf-8")
         self.assertIn("collect_dynamic_libs", source)
         self.assertIn("collect_submodules", source)
         self.assertIn('"retraining_runtime"', source)
@@ -261,11 +261,11 @@ class PackagingReadinessContractTests(unittest.TestCase):
         self.assertIn("upx=False", source)
 
     def test_build_script_gates_source_and_packaged_gpu_diagnostics(self):
-        source = (PROJECT_ROOT / "build_exe.bat").read_text(encoding="utf-8")
+        source = (PROJECT_ROOT / "packaging" / "build_exe.bat").read_text(encoding="utf-8")
         source_gate = source.index(
             "venv\\Scripts\\python.exe UI\\PolyVisionMain.py --diagnose-retraining --require-gpu --json"
         )
-        build_command = source.index("pyinstaller --clean --noconfirm PolyVision.spec")
+        build_command = source.index('pyinstaller --clean --noconfirm "%~dp0PolyVision.spec"')
         packaged_gate = source.index(
             "dist\\PolyVision\\PolyVision.exe --diagnose-retraining --require-gpu --json"
         )

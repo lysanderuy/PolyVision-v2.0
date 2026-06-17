@@ -1,9 +1,11 @@
 @echo off
 setlocal EnableExtensions
 
-cd /d "%~dp0"
+:: This script lives in packaging\; the project root is one level up
+cd /d "%~dp0.."
 set "PROJECT_ROOT=%CD%"
-set "LOG_FILE=%CD%\repair_gpu_env.log"
+if not exist "logs" mkdir "logs"
+set "LOG_FILE=%CD%\logs\repair_gpu_env.log"
 set "ORIGINAL_PYTHONPATH=%PYTHONPATH%"
 set "PYTHONNOUSERSITE=1"
 set "TEMP_REPAIR_DIR=%TEMP%\PolyVisionGpuRepair_%RANDOM%_%RANDOM%"
@@ -60,7 +62,7 @@ call :prepare_build_environment
 
 echo.
 echo Running repair preflight before changing the active environment...
-"venv\Scripts\python.exe" repair_gpu_env.py --preflight-repair >> "%LOG_FILE%" 2>&1
+"venv\Scripts\python.exe" "%~dp0repair_gpu_env.py" --preflight-repair >> "%LOG_FILE%" 2>&1
 if errorlevel 1 goto fail
 
 if /I "%~1"=="--preflight-only" (

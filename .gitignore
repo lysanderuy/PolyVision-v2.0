@@ -49,15 +49,11 @@ Models/dev/codes_used.txt
 # Detectron2 (clone separately: https://github.com/facebookresearch/detectron2)
 detectron2/
 
+# Runtime logs (e.g. packaging/repair_gpu_env.bat writes logs/repair_gpu_env.log)
+logs/
+
 # Misc
 *.log
 *.tmp
 Thumbs.db
 .DS_Store
-
-# Build files
-build_exe.bat
-setup_build.bat
-PolyVision.spec
-UI/PolyVisionMain.spec
-build_requirements.txt

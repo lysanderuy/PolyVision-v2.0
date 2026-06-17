@@ -52,8 +52,8 @@ set, the build may only support the GPU installed in the build machine.
 After setting the architecture list, rebuild and validate the source runtime:
 
 ```powershell
-.\repair_gpu_env.bat --preflight-only
-.\repair_gpu_env.bat
+.\packaging\repair_gpu_env.bat --preflight-only
+.\packaging\repair_gpu_env.bat
 venv\Scripts\python.exe UI\PolyVisionMain.py --diagnose-retraining --require-gpu --json
 ```
 
@@ -62,13 +62,13 @@ venv\Scripts\python.exe UI\PolyVisionMain.py --diagnose-retraining --require-gpu
 Install PyInstaller tooling:
 
 ```powershell
-.\setup_build.bat
+.\packaging\setup_build.bat
 ```
 
 Build the one-folder package:
 
 ```powershell
-.\build_exe.bat
+.\packaging\build_exe.bat
 ```
 
 `build_exe.bat` now:
