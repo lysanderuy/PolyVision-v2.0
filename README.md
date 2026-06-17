@@ -24,6 +24,7 @@ Key components:
 
 - `UI/` – main application code and GUI modules
 - `Models/` – training scripts, dataset tools, evaluation code, and experiments
+- `tests/` – automated tests (e.g. GPU retraining runtime checks)
 - `requirements.txt` – Python dependencies for the application
 - `docs/` – packaging and GPU retraining guides
 - `packaging/` – build and GPU-repair tooling:
