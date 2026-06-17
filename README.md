@@ -23,7 +23,7 @@ Key components:
 ## Repository structure
 
 - `UI/` – main application code and GUI modules
-- `Models/` – training scripts, dataset tools, evaluation code, and experiments
+- `Models/` – training scripts, dataset tools, evaluation code, and experiments (including `Models/archive/` for earlier training iterations)
 - `tests/` – automated tests (e.g. GPU retraining runtime checks)
 - `requirements.txt` – Python dependencies for the application
 - `docs/` – packaging and GPU retraining guides
@@ -76,88 +76,6 @@ Key components:
    cd ..
    ```
 
-## GPU retraining support
-
-> **Packaged application users:** Do not install CUDA Toolkit 11.8, NVCC, Python,
-> or Detectron2. The packaged application must already contain a working
-> retraining runtime. If GPU retraining is unavailable, continue on CPU when
-> PolyVision offers that option or contact your PolyVision support person for a
-> corrected application build.
-
-PolyVision automatically checks for NVIDIA CUDA support when retraining starts.
-The diagnostic validates PyTorch, Torchvision native operations, the Detectron2
-native extension, and CUDA build compatibility. If the complete CUDA stack is
-usable, retraining and the post-training benchmark use the GPU. CPU fallback is
-allowed only when the complete CPU retraining stack passes validation.
-
-See [GPU Retraining User Guide](docs/GPU_RETRAINING_USER_GUIDE.md) for plain-language
-instructions for packaged users and a separate technical repair procedure for
-administrators and developers.
-
-See [GPU Packaging Guide](docs/GPU_PACKAGING_GUIDE.md) for the GPU-machine packaging
-handoff, PyInstaller gates, and `TORCH_CUDA_ARCH_LIST` requirements.
-
-Run the same validation used by source and packaged builds:
-
-```powershell
-python UI\PolyVisionMain.py --diagnose-retraining
-python UI\PolyVisionMain.py --diagnose-retraining --require-gpu
-python UI\PolyVisionMain.py --diagnose-retraining --require-gpu --json
-```
-
-The commands return exit code `0` when the requested runtime is ready, `1` when
-retraining is unavailable, and `2` when retraining is available but the
-`--require-gpu` requirement is not met.
-
-For source/venv installs, a technical administrator or developer can repair the
-environment when NVIDIA hardware is detected but the Python ML stack is
-CPU-only or broken. This is not an end-user repair. It requires internet access,
-MSVC C++ build tools, and the CUDA 11.8 toolkit/NVCC:
-
-```powershell
-.\packaging\repair_gpu_env.bat --preflight-only
-.\packaging\repair_gpu_env.bat
-```
-
-The repair performs all prerequisite checks first, builds and validates a
-replacement Detectron2 wheel in a temporary environment, and changes the active
-venv only after that validation passes. Close PolyVision before continuing in
-the repair window, then restart PolyVision after repair completes. Details are
-written to `logs/repair_gpu_env.log`.
-
-Packaged PyInstaller `.exe` builds cannot be repaired in place this way. Do not
-ask packaged users to install CUDA Toolkit 11.8 or run `repair_gpu_env.bat`.
-They need a corrected GPU-enabled build. A packaged build with a valid CPU stack
-can continue retraining on CPU; a packaged build with a broken retraining
-runtime blocks retraining.
-
-Before handing a build to packaging, require this command to pass:
-
-```powershell
-python UI\PolyVisionMain.py --diagnose-retraining --require-gpu
-```
-
-After packaging, run the equivalent command against `PolyVision.exe` to catch
-missing native extensions or DLLs before distribution. Retraining writes new
-models under the external `Models` workspace, so that workspace must remain
-writable in the installed application layout.
-
-Detectron2 source builds may include kernels only for the build machine's GPU.
-For a distributed GPU build, the packaging owner must set
-`TORCH_CUDA_ARCH_LIST` for every supported NVIDIA GPU architecture and run the
-packaged diagnostic on representative target hardware. The diagnostic executes
-a Detectron2 CUDA native operation so unsupported architectures fail before
-retraining starts.
-
-## Running the application
-
-Start the main application from the `UI` directory:
-
-```powershell
-cd UI
-python PolyVisionMain.py
-```
-
 ## Model files and assets
 
 Large files (model weights, datasets, evaluation outputs) are not included in this repository due to their size. The application resolves them automatically from the `Models/` directory at runtime.
@@ -184,6 +102,44 @@ Models/
   SEAMaP-Multi-class-100/
   SEAMaP-Multi-class-100-1/
 ```
+
+## Running the application
+
+Start the main application from the `UI` directory:
+
+```powershell
+cd UI
+python PolyVisionMain.py
+```
+
+## GPU retraining support
+
+PolyVision checks for a usable NVIDIA CUDA stack when retraining starts. If the
+full CUDA stack (PyTorch, Torchvision, and the Detectron2 native extension)
+validates, retraining and the post-training benchmark run on the GPU; otherwise
+PolyVision falls back to CPU when a valid CPU stack is available.
+
+To check the runtime on a source/venv install, run this from the repository root
+(note the `UI\` path prefix, unlike the application itself, which is launched
+from inside the `UI` directory):
+
+```powershell
+python UI\PolyVisionMain.py --diagnose-retraining --require-gpu
+```
+
+Exit code `0` = requested runtime ready, `1` = retraining unavailable, `2` =
+available but the `--require-gpu` requirement is not met. Add `--json` for
+machine-readable output.
+
+For everything else — the packaged-user guidance, repairing a broken source
+install, and the GPU packaging/distribution handoff — see the dedicated guides:
+
+- [GPU Retraining User Guide](docs/GPU_RETRAINING_USER_GUIDE.md) — for packaged
+  end-users, plus the source-install repair procedure for administrators and
+  developers.
+- [Packaging Guide](docs/PACKAGING_GUIDE.md) — the build and distribution flow,
+  plus the GPU build prerequisites (`TORCH_CUDA_ARCH_LIST` architecture coverage
+  and the packaged acceptance gate).
 
 ## Notes
 

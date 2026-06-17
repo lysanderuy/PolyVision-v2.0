@@ -1,9 +1,17 @@
-# GPU Packaging Guide
+# Packaging Guide
 
 This guide is for the developer or build agent creating the packaged
 `PolyVision.exe`. It is not for regular PolyVision users.
 
-## Build Machine Requirement
+The packaged build is produced with PyInstaller from the project `venv`. Because
+PolyVision ships with a GPU-capable retraining runtime, most of the work happens
+before the build: the source environment must be GPU-ready and validated. The
+GPU build prerequisites below cover that; the Build, Distribution Rules, and
+Packaged Acceptance Gate sections cover the general packaging flow.
+
+## GPU build prerequisites
+
+### Build Machine Requirement
 
 The GPU-enabled package must be built on a Windows machine with an NVIDIA GPU.
 PyInstaller freezes the current Python environment; it cannot add GPU support
@@ -13,7 +21,7 @@ A single GPU-enabled package can still serve CPU-only users. At runtime,
 PolyVision selects CUDA only when the complete GPU stack passes diagnostics.
 Otherwise it falls back to CPU when the CPU retraining stack is valid.
 
-## Required Source Runtime
+### Required Source Runtime
 
 Before packaging, the source environment must pass:
 
@@ -34,7 +42,7 @@ The exit code must be `0`, and the JSON must report:
 
 Do not package if this command fails.
 
-## Detectron2 GPU Architecture Coverage
+### Detectron2 GPU Architecture Coverage
 
 Detectron2 CUDA kernels are compiled for specific NVIDIA compute capabilities.
 Set `TORCH_CUDA_ARCH_LIST` before compiling Detectron2 so the package supports
