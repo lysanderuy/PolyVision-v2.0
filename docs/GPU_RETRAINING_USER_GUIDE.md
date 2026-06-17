@@ -87,7 +87,8 @@ Close PolyVision, then run:
 
 The repair first builds and validates a replacement Detectron2 wheel in a
 temporary environment. It changes the active virtual environment only after the
-temporary GPU validation succeeds.
+temporary GPU validation succeeds. Restart PolyVision after the repair completes.
+Details are written to `logs/repair_gpu_env.log`.
 
 ### Validate Before Packaging
 
