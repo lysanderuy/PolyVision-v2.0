@@ -78,8 +78,6 @@ hiddenimports = [
     "sqlite3",
     "json",
     "requests",
-    "supervision",
-    "roboflow",
     "pycocotools",
     "matplotlib",
     "pandas",

@@ -1,9 +1,12 @@
 import os
 import cv2
+from dotenv import load_dotenv
 from roboflow import Roboflow
 from detectron2.data.datasets import register_coco_instances
 from detectron2.data import DatasetCatalog, MetadataCatalog
 from detectron2.utils.visualizer import Visualizer, ColorMode
+
+load_dotenv()  # reads ROBOFLOW_API_KEY from the project-root .env
 
 # ADD cv2_imshow function for local display
 def cv2_imshow(image, filename="visualization.jpg"):
@@ -13,17 +16,17 @@ def cv2_imshow(image, filename="visualization.jpg"):
     print("Open the file to view the visualization")
 
 
-# rf = Roboflow(api_key="6rCsQxsPE2zNv23vBvGy")
+# rf = Roboflow(api_key=os.environ.get("ROBOFLOW_API_KEY"))
 # project = rf.workspace("seamap").project("seamap-binary-full")
 # dataset = project.version(2).download("coco")
 
 #-------------- FINAL BINARY DATASET ----------------------
-rf = Roboflow(api_key="6rCsQxsPE2zNv23vBvGy")
+rf = Roboflow(api_key=os.environ.get("ROBOFLOW_API_KEY"))
 project = rf.workspace("seamap").project("seamap-binary-full")
 dataset = project.version(6).download("coco")
 
 #-------------- FINAL MULTICLASS-100 BALANCE DATASET ----------------------
-# rf = Roboflow(api_key="6rCsQxsPE2zNv23vBvGy")
+# rf = Roboflow(api_key=os.environ.get("ROBOFLOW_API_KEY"))
 # project = rf.workspace("seamap").project("seamap-multi-class-100")  #seamap-multi-class-100
 # dataset = project.version(1).download("coco")
 
@@ -36,7 +39,7 @@ print(f"Dataset name: {dataset.name}")
 print(f"Processed dataset name: {DATA_SET_NAME}")
 print(f"Annotations file: {ANNOTATIONS_FILE_NAME}")
 
-# rf = Roboflow(api_key="6rCsQxsPE2zNv23vBvGy")
+# rf = Roboflow(api_key=os.environ.get("ROBOFLOW_API_KEY"))
 # project = rf.workspace("seamap").project("seamap-binary-balanced")
 # dataset = project.version(1).download("coco")
 
@@ -44,13 +47,13 @@ print(f"Annotations file: {ANNOTATIONS_FILE_NAME}")
 ##================= M U L T I - C L A S S =======================
 
 ##25%
-# rf = Roboflow(api_key="6rCsQxsPE2zNv23vBvGy")
+# rf = Roboflow(api_key=os.environ.get("ROBOFLOW_API_KEY"))
 # project = rf.workspace("seamap").project("seamap-multi-class-25")
 # dataset = project.version(1).download("coco")
 
 ##75%
 
-# rf = Roboflow(api_key="6rCsQxsPE2zNv23vBvGy")
+# rf = Roboflow(api_key=os.environ.get("ROBOFLOW_API_KEY"))
 # project = rf.workspace("seamap").project("seamap-multi-class-75")
 # dataset = project.version(1).download("coco")
 
@@ -60,7 +63,7 @@ print(f"Annotations file: {ANNOTATIONS_FILE_NAME}")
 
 ## 100% ALL - IMBALANCE
 
-# rf = Roboflow(api_key="6rCsQxsPE2zNv23vBvGy")
+# rf = Roboflow(api_key=os.environ.get("ROBOFLOW_API_KEY"))
 # project = rf.workspace("seamap").project("seamap")
 # dataset = project.version(10).download("coco")
 
@@ -69,24 +72,24 @@ print(f"Annotations file: {ANNOTATIONS_FILE_NAME}")
 ##================= B I N A R Y =======================
 
 # ORIGINAL -------------------
-# rf = Roboflow(api_key="6rCsQxsPE2zNv23vBvGy")
+# rf = Roboflow(api_key=os.environ.get("ROBOFLOW_API_KEY"))
 # project = rf.workspace("seamap").project("seamap-binary")
 # dataset = project.version(9).download("coco")
 
 
 # 25 % ------------------
-# rf = Roboflow(api_key="6rCsQxsPE2zNv23vBvGy")
+# rf = Roboflow(api_key=os.environ.get("ROBOFLOW_API_KEY"))
 # project = rf.workspace("seamap").project("seamap-binary-25")
 # dataset = project.version(2).download("coco")
 
 # 50 % ------------------
-# rf = Roboflow(api_key="6rCsQxsPE2zNv23vBvGy")
+# rf = Roboflow(api_key=os.environ.get("ROBOFLOW_API_KEY"))
 # project = rf.workspace("seamap").project("seamap-binary-50")
 # dataset = project.version(2).download("coco")
 
 
 # 75% ------------------------
-# rf = Roboflow(api_key="6rCsQxsPE2zNv23vBvGy")
+# rf = Roboflow(api_key=os.environ.get("ROBOFLOW_API_KEY"))
 # project = rf.workspace("seamap").project("seamap-binary-75")
 # dataset = project.version(1).download("coco")
 
