@@ -1592,7 +1592,38 @@ class RetrainUI(QDialog):
         return False
 
     # NEW: Slot to handle the start button click
+    def _models_dir_is_writable(self):
+        """
+        Verify the external Models folder (next to PolyVision.exe) can be written
+        to before starting retraining. A real write-probe is used because os.access
+        with W_OK is unreliable on Windows protected directories.
+        """
+        models_dir = models_path()
+        try:
+            os.makedirs(models_dir, exist_ok=True)
+            probe = os.path.join(models_dir, ".write_test")
+            with open(probe, "w") as f:
+                f.write("")
+            os.remove(probe)
+            return True
+        except OSError:
+            return False
+
     def start_retraining(self):
+
+        if not self._models_dir_is_writable():
+            QMessageBox.critical(
+                self,
+                'Models Folder Not Writable',
+                "PolyVision cannot write to its Models folder:\n\n"
+                f"{models_path()}\n\n"
+                "Retraining needs to save new model files here, but this location is "
+                "read-only. This usually happens when PolyVision is installed in a "
+                "protected folder such as 'Program Files'.\n\n"
+                "Move the entire PolyVision folder to a writable location (for example "
+                "your Desktop or Documents) and try again.",
+            )
+            return
 
         RECOMMENDED_MINIMUM_SAMPLES = 50
         self.load_data_summary()
