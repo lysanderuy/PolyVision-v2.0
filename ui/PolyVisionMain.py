@@ -2,7 +2,7 @@ import os
 import sys 
 
 if __name__ == "__main__" and "--diagnose-retraining" in sys.argv[1:]:
-    from retraining_runtime.diagnostic_cli import main as retraining_diagnostic_main
+    from retraining.runtime.diagnostic_cli import main as retraining_diagnostic_main
 
     raise SystemExit(retraining_diagnostic_main(sys.argv[1:]))
 
@@ -24,25 +24,25 @@ import math
 import serial
 import serial.tools.list_ports
 import time
-from statistics_ui import StatisticsUI
-from images import ImagesUI
+from widgets.statistics_ui import StatisticsUI
+from widgets.images import ImagesUI
 from new_file import NewFileUI
-from retrain import RetrainUI
+from retraining.retrain import RetrainUI
 from database import *
-from capture import *
+from hardware.capture import *
 from settings import SettingsUI
 import json
 from PIL import ImageEnhance
-from okay_message_box import *
-from detect import DetectUI
-from grbl import GrblUI
+from dialogs.okay_message_box import *
+from inference.detect import DetectUI
+from hardware.grbl import GrblUI
 from app_paths import user_settings_path, resource_path, app_storage_dir, models_path
-from live_detect import *
-from calibration_ui import CalibrateUI
-from coordinate_ui import CoordinateUI
+from inference.live_detect import *
+from hardware.calibration_ui import CalibrateUI
+from hardware.coordinate_ui import CoordinateUI
 import threading
-from verification_message_box import VerificationBox
-from annotation_review_dialog import AnnotationReviewDialog
+from dialogs.verification_message_box import VerificationBox
+from dialogs.annotation_review_dialog import AnnotationReviewDialog
 from PIL.ImageQt import ImageQt
 from collections import deque
 import winsound

@@ -16,11 +16,11 @@ import numpy as np
 import serial
 import serial.tools.list_ports
 import time
-from statistics_ui import StatisticsUI
-from images import ImagesUI
+from widgets.statistics_ui import StatisticsUI
+from widgets.images import ImagesUI
 from new_file import NewFileUI
 from database import *
-from capture import *
+from hardware.capture import *
 from settings import SettingsUI
 
 

@@ -13,9 +13,9 @@ UI_DIR = PROJECT_ROOT / "ui"
 if str(UI_DIR) not in sys.path:
     sys.path.insert(0, str(UI_DIR))
 
-from retraining_runtime import gpu_diagnostics as diagnostics
-from retraining_runtime import repair_preflight
-from retraining_runtime.ui_policy import (
+from retraining.runtime import gpu_diagnostics as diagnostics
+from retraining.runtime import repair_preflight
+from retraining.runtime.ui_policy import (
     BLOCKED,
     CPU_FALLBACK,
     REPAIR_OR_CPU,
@@ -263,9 +263,9 @@ class PackagingReadinessContractTests(unittest.TestCase):
         self.assertLess(diagnostic_guard, heavy_import)
 
     def test_retraining_ui_does_not_dynamically_load_external_python(self):
-        source = (UI_DIR / "retrain.py").read_text(encoding="utf-8")
+        source = (UI_DIR / "retraining" / "retrain.py").read_text(encoding="utf-8")
         self.assertNotIn("spec_from_file_location", source)
-        self.assertIn("from retraining_runtime import train as retraining_train", source)
+        self.assertIn("from retraining.runtime import train as retraining_train", source)
 
     def test_repair_preflight_runs_before_active_pip_changes(self):
         source = (PROJECT_ROOT / "packaging" / "repair_gpu_env.bat").read_text(encoding="utf-8")
@@ -298,7 +298,7 @@ class PackagingReadinessContractTests(unittest.TestCase):
         source = (PROJECT_ROOT / "packaging" / "PolyVision.spec").read_text(encoding="utf-8")
         self.assertIn("collect_dynamic_libs", source)
         self.assertIn("collect_submodules", source)
-        self.assertIn('"retraining_runtime"', source)
+        self.assertIn('"retraining.runtime"', source)
         self.assertIn('"detectron2"', source)
         self.assertIn('"torchvision.ops"', source)
         self.assertIn("detectron2._C", source)

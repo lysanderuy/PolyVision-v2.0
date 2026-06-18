@@ -8,10 +8,10 @@ UI_DIR = Path(__file__).resolve().parents[2] / "ui"
 if str(UI_DIR) not in sys.path:
     sys.path.insert(0, str(UI_DIR))
 
-from retraining_runtime.gpu_diagnostics import *  # noqa: F401,F403
+from retraining.runtime.gpu_diagnostics import *  # noqa: F401,F403
 
 
 if __name__ == "__main__":
-    from retraining_runtime.gpu_diagnostics import diagnose_gpu_support, print_diagnostic
+    from retraining.runtime.gpu_diagnostics import diagnose_gpu_support, print_diagnostic
 
     print_diagnostic(diagnose_gpu_support())

@@ -13,7 +13,7 @@ UI_DIR = PROJECT_ROOT / "ui"
 if str(UI_DIR) not in sys.path:
     sys.path.insert(0, str(UI_DIR))
 
-from base_marker import (
+from retraining.base_marker import (
     BASE_MODEL_MARKER,
     LEGACY_BASES,
     is_base_model_dir,

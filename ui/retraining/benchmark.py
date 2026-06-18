@@ -14,7 +14,7 @@ from detectron2.data.datasets import register_coco_instances
 from detectron2.data import DatasetCatalog, MetadataCatalog, build_detection_test_loader
 from detectron2.evaluation import COCOEvaluator, inference_on_dataset
 
-from retraining_runtime.gpu_diagnostics import diagnose_gpu_support, format_diagnostic_lines, select_training_device
+from retraining.runtime.gpu_diagnostics import diagnose_gpu_support, format_diagnostic_lines, select_training_device
 
 def main(args):
     print(f"--- Starting Benchmark for Model: {args.model_path} ---")

@@ -12,18 +12,18 @@ import random
 import yaml
 import glob
 import subprocess
-from benchmark import main as benchmark_main
+from retraining.benchmark import main as benchmark_main
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
-from import_dialog import ImportDialog
+from dialogs.import_dialog import ImportDialog
 from database import create_retraining_database
 from datetime import datetime
-from comparison_dialog import ComparisonDialog
+from dialogs.comparison_dialog import ComparisonDialog
 from pathlib import Path
 
-from retraining_runtime import train as retraining_train
-from retraining_runtime.gpu_diagnostics import (
+from retraining.runtime import train as retraining_train
+from retraining.runtime.gpu_diagnostics import (
     CUDA_BROKEN,
     GPU_INSUFFICIENT_VRAM,
     GPU_READY,
@@ -33,12 +33,12 @@ from retraining_runtime.gpu_diagnostics import (
     diagnose_gpu_support,
     format_diagnostic_lines,
 )
-from retraining_runtime.ui_policy import BLOCKED, CPU_FALLBACK, READY, retraining_start_policy
+from retraining.runtime.ui_policy import BLOCKED, CPU_FALLBACK, READY, retraining_start_policy
 
 import cv2
 import time
 from app_paths import models_path, storage_path, user_settings_path, resource_path, app_storage_dir
-from base_marker import is_base_model_dir
+from retraining.base_marker import is_base_model_dir
 
 BASE_OUTPUT_DIRECTORY = models_path()
 
@@ -880,7 +880,8 @@ class RetrainUI(QDialog):
         self.dashboard_values = {}
         self.highlight_labels = {}
         # The source repair script lives at project root; model paths use models_path().
-        self.project_root = str(Path(__file__).resolve().parents[1])
+        # This file is ui/retraining/retrain.py, so project root is three levels up.
+        self.project_root = str(Path(__file__).resolve().parents[2])
         self.init_ui()
         self.load_data_summary()
 
