@@ -518,7 +518,11 @@ def should_offer_repair(report: GpuDiagnostic) -> bool:
 def diagnostic_exit_code(report: GpuDiagnostic, require_gpu: bool = False) -> int:
     if not report.retraining_available:
         return 1
-    if require_gpu and not report.gpu_ready:
+    # --require-gpu verifies the GPU runtime is correctly built (CUDA, detectron2
+    # CUDA build, version match), not that the build machine is big enough to
+    # train. GPU_INSUFFICIENT_VRAM means the runtime is fine but this machine's
+    # card is small, so it must not fail the build gate.
+    if require_gpu and not report.gpu_ready and report.status != GPU_INSUFFICIENT_VRAM:
         return 2
     return 0
 

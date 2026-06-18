@@ -159,6 +159,13 @@ class DiagnosticStateTests(unittest.TestCase):
         self.assertEqual(report.status, diagnostics.GPU_READY)
         self.assertEqual(report.selected_device, "cuda")
 
+    def test_small_vram_still_passes_require_gpu_build_gate(self):
+        report = self.diagnose(total_memory_bytes=2 * 1024 ** 3)
+        self.assertEqual(report.status, diagnostics.GPU_INSUFFICIENT_VRAM)
+        # The GPU runtime is correctly built; a small build machine must not
+        # break the packaged --require-gpu diagnostic gate.
+        self.assertEqual(diagnostics.diagnostic_exit_code(report, require_gpu=True), 0)
+
     def test_cuda_allocation_failure_falls_back_to_cpu(self):
         report = self.diagnose(allocation_fails=True)
         self.assertEqual(report.status, diagnostics.CUDA_BROKEN)
