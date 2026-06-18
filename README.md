@@ -30,6 +30,7 @@ Key components:
 ├── tools/               # developer utilities (e.g. mark_base.py — stamp a base model)
 ├── tests/               # automated tests (e.g. GPU retraining runtime checks)
 ├── docs/                # packaging and GPU retraining guides
+├── .github/             # CI workflows (e.g. PR description automation)
 ├── packaging/           # build and GPU-repair tooling
 │   ├── build_exe.bat            # builds the standalone .exe via PyInstaller
 │   ├── setup_build.bat          # build environment setup
