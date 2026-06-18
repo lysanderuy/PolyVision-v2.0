@@ -9,6 +9,22 @@ before the build: the source environment must be GPU-ready and validated. The
 GPU build prerequisites below cover that; the Build, Distribution Rules, and
 Packaged Acceptance Gate sections cover the general packaging flow.
 
+## Do you need a GPU build?
+
+A GPU build lets retraining run on an NVIDIA GPU, but it requires a GPU-ready
+source environment (CUDA Toolkit, a compiled Detectron2, and a CUDA build of
+PyTorch). Setting that up is the bulk of this guide.
+
+A **CPU-only build is a valid alternative.** Retraining still works; it is just
+slower. Choose CPU-only if you do not have an NVIDIA build machine, or the target
+GPUs are too weak to be worth the setup.
+
+- **GPU build** → continue with *GPU build prerequisites* below.
+- **CPU-only build** → skip to *Build*, and drop `--require-gpu` from every
+  diagnostic command so a CPU runtime counts as passing.
+
+Either way, the source environment must pass its diagnostic before you package.
+
 ## GPU build prerequisites
 
 ### Build Machine Requirement
@@ -30,17 +46,13 @@ venv\Scripts\python.exe ui\PolyVisionMain.py --diagnose-retraining --require-gpu
 $LASTEXITCODE
 ```
 
-The exit code must be `0`, and the JSON must report:
+The exit code must be `0` and the JSON must meet the
+[GPU-ready pass criteria](../README.md#gpu-ready-pass-criteria) (the single
+source of truth for those fields).
 
-- `"status": "gpu_ready"`
-- `"selected_device": "cuda"`
-- `"retraining_available": true`
-- `"cpu_ready": true`
-- `"gpu_ready": true`
-- `"detectron2_native_available": true`
-- `"detectron2_cuda_available": true`
-
-Do not package if this command fails.
+If the exit code is not `0`, do not package. Use the
+[exit-code table](../README.md#gpu-retraining) to decide your next step — repair
+the GPU stack, or switch to a CPU-only build (see below).
 
 ### Detectron2 GPU Architecture Coverage
 
