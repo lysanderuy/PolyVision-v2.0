@@ -8,10 +8,10 @@ UI_DIR = Path(__file__).resolve().parents[2] / "ui"
 if str(UI_DIR) not in sys.path:
     sys.path.insert(0, str(UI_DIR))
 
-from retraining_runtime.train import *  # noqa: F401,F403
+from retraining.runtime.train import *  # noqa: F401,F403
 
 
 if __name__ == "__main__":
-    from retraining_runtime.train import cli_main
+    from retraining.runtime.train import cli_main
 
     cli_main()

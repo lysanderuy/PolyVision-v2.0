@@ -11,9 +11,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from ui.retraining_runtime.diagnostic_cli import main as diagnostic_main
-from ui.retraining_runtime.gpu_diagnostics import diagnose_gpu_support, format_diagnostic_lines
-from ui.retraining_runtime.repair_preflight import print_repair_preflight, run_repair_preflight
+from ui.retraining.runtime.diagnostic_cli import main as diagnostic_main
+from ui.retraining.runtime.gpu_diagnostics import diagnose_gpu_support, format_diagnostic_lines
+from ui.retraining.runtime.repair_preflight import print_repair_preflight, run_repair_preflight
 
 
 def _remove_project_root_import_shadow() -> None:

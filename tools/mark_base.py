@@ -22,7 +22,7 @@ import sys
 
 # Import the shared marker logic from ui/ (kept dependency-free for this reason).
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "ui"))
-from base_marker import BASE_MODEL_MARKER, write_base_marker
+from retraining.base_marker import BASE_MODEL_MARKER, write_base_marker
 
 
 def main():

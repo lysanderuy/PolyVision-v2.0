@@ -122,7 +122,7 @@ if errorlevel 1 goto fail
 
 pushd "%TEMP_REPAIR_DIR%"
 set "PYTHONPATH=%PROJECT_ROOT%\ui"
-"%TEMP_PYTHON%" -m retraining_runtime.diagnostic_cli --diagnose-retraining --require-gpu >> "%LOG_FILE%" 2>&1
+"%TEMP_PYTHON%" -m retraining.runtime.diagnostic_cli --diagnose-retraining --require-gpu >> "%LOG_FILE%" 2>&1
 set "TEMP_DIAGNOSTIC_ERROR=%ERRORLEVEL%"
 popd
 set "PYTHONPATH=%ORIGINAL_PYTHONPATH%"
@@ -151,7 +151,7 @@ echo.
 echo Verifying the active retraining runtime...
 pushd "%TEMP_REPAIR_DIR%"
 set "PYTHONPATH=%PROJECT_ROOT%\ui"
-"%PROJECT_ROOT%\venv\Scripts\python.exe" -m retraining_runtime.diagnostic_cli --diagnose-retraining --require-gpu >> "%LOG_FILE%" 2>&1
+"%PROJECT_ROOT%\venv\Scripts\python.exe" -m retraining.runtime.diagnostic_cli --diagnose-retraining --require-gpu >> "%LOG_FILE%" 2>&1
 set "ACTIVE_DIAGNOSTIC_ERROR=%ERRORLEVEL%"
 popd
 set "PYTHONPATH=%ORIGINAL_PYTHONPATH%"

@@ -8,7 +8,7 @@ Google Colab notebook (note the `cv2_imshow` shims that replace Colab's built-in
 
 - Nothing in `ui/` imports from this folder.
 - `models/` is not bundled into the packaged `.exe`.
-- The live retraining pipeline is `ui/retraining_runtime/` + `models/retraining/`,
+- The live retraining pipeline is `ui/retraining/runtime/` + `models/retraining/`,
   which reads local COCO datasets directly — it does not use Roboflow.
 
 They are kept for **reproducibility and provenance**: they record which Roboflow

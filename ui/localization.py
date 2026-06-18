@@ -65,13 +65,13 @@ def initialize_models(model_types=None):
 
         try:
             if model_type == "Binary":
-                from inference_binary import Binary
+                from inference.inference_binary import Binary
                 detector = Binary()
                 if not detector.is_ready():
                     raise RuntimeError("Binary detector failed to report ready")
                 GLOBAL_BINARY_DETECTOR = detector
             elif model_type == "Multiclass":
-                from inference_multiclass import Multiclass
+                from inference.inference_multiclass import Multiclass
                 detector = Multiclass()
                 if not detector.is_ready():
                     raise RuntimeError("Multiclass detector failed to report ready")

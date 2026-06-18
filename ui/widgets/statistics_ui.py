@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import sqlite3
 from database import *
 import numpy as np
-from charts import *
+from widgets.charts import *
 from app_paths import resource_path
 
 class StatisticsUI(QDialog):

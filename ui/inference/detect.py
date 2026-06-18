@@ -16,7 +16,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QAction, QFileDialog, QIn
 from PyQt5 import QtCore
 from PyQt5.QtCore import *
 from PyQt5.uic import loadUi
-from bbox import BoundingBox
+from inference.bbox import BoundingBox
 from localization import Detector, loadModel, initialize_models, is_models_ready
 
 class DetectUI(QDialog):

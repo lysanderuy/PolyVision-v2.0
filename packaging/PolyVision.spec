@@ -85,7 +85,7 @@ hiddenimports = [
     "tqdm",
 ]
 
-for package in ("retraining_runtime", "detectron2", "torchvision.ops"):
+for package in ("retraining.runtime", "dialogs", "inference", "hardware", "retraining", "widgets", "detectron2", "torchvision.ops"):
     try:
         hiddenimports += collect_submodules(package)
     except Exception as exc:
