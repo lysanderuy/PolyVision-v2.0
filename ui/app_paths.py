@@ -95,6 +95,25 @@ def storage_path(*relative_parts: str) -> str:
     return str(path)
 
 
+def sessions_dir() -> Path:
+    """
+    Default parent directory for user-created session folders.
+
+    Dev    : <project_root>/sessions
+    Frozen : <Documents>/PolyVision/sessions  (falls back to %APPDATA%/PolyVision)
+    """
+    if not _IS_FROZEN:
+        root = _BASE_PATH.parent / "sessions"
+    else:
+        profile = os.getenv("USERPROFILE")
+        if profile:
+            root = Path(profile) / "Documents" / "PolyVision" / "sessions"
+        else:
+            root = _user_config_dir() / "sessions"
+    root.mkdir(parents=True, exist_ok=True)
+    return root
+
+
 def _exe_dir() -> Path:
     """
     Directory that contains PolyVision.exe when frozen, or the project
@@ -107,12 +126,12 @@ def _exe_dir() -> Path:
 
 def models_path(*relative_parts: str) -> str:
     """
-    Return an absolute path inside the Models directory.
+    Return an absolute path inside the models directory.
 
-    Frozen : <dist/PolyVision>/Models/...   (sits next to the exe)
-    Dev    : <project_root>/Models/...
+    Frozen : <dist/PolyVision>/models/...   (sits next to the exe)
+    Dev    : <project_root>/models/...
     """
-    return str(_exe_dir().joinpath("Models", *relative_parts))
+    return str(_exe_dir().joinpath("models", *relative_parts))
 
 
 def resource_exists(*relative_parts: str) -> bool:

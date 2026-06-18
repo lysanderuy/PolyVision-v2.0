@@ -80,15 +80,15 @@ Build the one-folder package:
 
 - blocks packaging if the source runtime is not GPU-ready;
 - uses `PolyVision.spec`;
-- copies `Models` next to `PolyVision.exe` when available;
+- copies `models` next to `PolyVision.exe` when available;
 - runs the packaged executable diagnostic before reporting success.
 
 ## Distribution Rules
 
 - Use the one-folder `dist\PolyVision` output.
 - Do not use a one-file executable.
-- Keep `Models` next to `PolyVision.exe`.
-- Install the app and `Models` in a user-writable location because retraining
+- Keep `models` next to `PolyVision.exe`.
+- Install the app and `models` in a user-writable location because retraining
   writes new model files there.
 - Do not ask packaged users to install CUDA Toolkit, Python packages, or run
   `repair_gpu_env.bat`.

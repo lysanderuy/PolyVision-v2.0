@@ -1,4 +1,4 @@
-# Models/archive/iteration_1 — Iteration-1 training scripts
+# models/archive/iteration_1 — Iteration-1 training scripts
 
 These are the original, manually-run training, evaluation, and visualization
 scripts from the first iteration of the model pipeline. They were derived from a
@@ -7,8 +7,8 @@ Google Colab notebook (note the `cv2_imshow` shims that replace Colab's built-in
 **They are not part of the PolyVision application or its build.**
 
 - Nothing in `ui/` imports from this folder.
-- `Models/` is not bundled into the packaged `.exe`.
-- The live retraining pipeline is `ui/retraining_runtime/` + `Models/retraining/`,
+- `models/` is not bundled into the packaged `.exe`.
+- The live retraining pipeline is `ui/retraining_runtime/` + `models/retraining/`,
   which reads local COCO datasets directly — it does not use Roboflow.
 
 They are kept for **reproducibility and provenance**: they record which Roboflow

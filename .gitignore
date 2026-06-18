@@ -20,18 +20,18 @@ dist/
 .idea/
 
 # Trained model weights (large binary files)
-Models/SEAMaP-Binary-Full/
-Models/SEAMaP-Binary-Full-6/
-Models/SEAMaP-Multi-class-100/
-Models/SEAMaP-Multi-class-100-1/
+models/SEAMaP-Binary-Full/
+models/SEAMaP-Binary-Full-6/
+models/SEAMaP-Multi-class-100/
+models/SEAMaP-Multi-class-100-1/
 
 # Retraining datasets (large image collections)
-Models/retraining/original_datasets/
-Models/retraining_images/
-Models/retraining_data/
+models/retraining/original_datasets/
+models/retraining_images/
+models/retraining_data/
 
 # Evaluation artifacts
-Models/dev/evaluation_output/
+models/dev/evaluation_output/
 
 # User databases and runtime-generated data
 ui/main_database.db
@@ -43,8 +43,8 @@ ui/widget_screenshot.png
 ui/PolyVisionMain.exe
 
 # Generated/misc files
-Models/dev/visualization.jpg
-Models/dev/codes_used.txt
+models/dev/visualization.jpg
+models/dev/codes_used.txt
 
 # Detectron2 (clone separately: https://github.com/facebookresearch/detectron2)
 detectron2/

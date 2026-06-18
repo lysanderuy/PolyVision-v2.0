@@ -48,14 +48,14 @@ if exist "dist\PolyVision\PolyVision.exe" (
     echo ===============================================
     echo.
 
-    if exist "Models" (
-        :: Copy Models/ into dist\PolyVision\ so it sits next to the exe
-        echo Copying Models folder into dist\PolyVision\...
-        xcopy /E /I /Y "Models" "dist\PolyVision\Models"
+    if exist "models" (
+        :: Copy models/ into dist\PolyVision\ so it sits next to the exe
+        echo Copying models folder into dist\PolyVision\...
+        xcopy /E /I /Y "models" "dist\PolyVision\models"
         if errorlevel 1 goto fail
-        echo Models folder copied.
+        echo models folder copied.
     ) else (
-        echo WARNING: Models folder was not found. The packaged app needs a writable Models folder next to PolyVision.exe.
+        echo WARNING: models folder was not found. The packaged app needs a writable models folder next to PolyVision.exe.
     )
     echo.
 
@@ -71,7 +71,7 @@ if exist "dist\PolyVision\PolyVision.exe" (
     echo.
     echo ===============================================
     echo Build and packaged GPU diagnostics completed successfully.
-    echo Keep dist\PolyVision and Models in a user-writable install location.
+    echo Keep dist\PolyVision and models in a user-writable install location.
     echo ===============================================
 
     :: Optional: Create a shortcut on desktop

@@ -548,9 +548,9 @@ class RetrainingThread(QThread):
             ranked_list_path = models_path("SEAMaP-Binary-Full-6", "hard_examples_ranked.json")
             
             # For testing onle
-            # base_annotation_path = "../Models/retraining/original_datasets/binary_90_percent/train/_annotations.coco.json"
-            # base_image_root = "../Models/retraining/original_datasets/binary_90_percent/train/"
-            # ranked_list_path = "../Models/retraining/original_datasets/binary_90_percent/hard_examples_ranked.json"
+            # base_annotation_path = "../models/retraining/original_datasets/binary_90_percent/train/_annotations.coco.json"
+            # base_image_root = "../models/retraining/original_datasets/binary_90_percent/train/"
+            # ranked_list_path = "../models/retraining/original_datasets/binary_90_percent/hard_examples_ranked.json"
         else: # Multiclass
             # Final Multiclass Model Paths
             base_annotation_path = models_path("SEAMaP-Multi-class-100-1", "train", "_annotations.coco.json")
@@ -558,9 +558,9 @@ class RetrainingThread(QThread):
             ranked_list_path = models_path("SEAMaP-Multi-class-100-1", "hard_examples_ranked.json")
             
             # For testing onle
-            # base_annotation_path = "../Models/retraining/original_datasets/multiclass_90_percent/train/_annotations.coco.json"
-            # base_image_root = "../Models/retraining/original_datasets/multiclass_90_percent/train/"
-            # ranked_list_path = "../Models/retraining/original_datasets/multiclass_90_percent/hard_examples_ranked.json"
+            # base_annotation_path = "../models/retraining/original_datasets/multiclass_90_percent/train/_annotations.coco.json"
+            # base_image_root = "../models/retraining/original_datasets/multiclass_90_percent/train/"
+            # ranked_list_path = "../models/retraining/original_datasets/multiclass_90_percent/hard_examples_ranked.json"
 
         if not os.path.exists(base_annotation_path):
             self.log_update.emit(f"FATAL ERROR: Base annotation file not found at {base_annotation_path}")

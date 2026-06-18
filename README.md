@@ -25,8 +25,8 @@ Key components:
 ```
 .
 ├── ui/                  # main application code and GUI modules
-├── Models/              # training scripts, dataset tools, evaluation, experiments
-│                        #   (incl. Models/archive/ for earlier iterations)
+├── models/              # training scripts, dataset tools, evaluation, experiments
+│                        #   (incl. models/archive/ for earlier iterations)
 ├── tools/               # developer utilities (e.g. mark_base.py — stamp a base model)
 ├── tests/               # automated tests (e.g. GPU retraining runtime checks)
 ├── docs/                # packaging and GPU retraining guides
@@ -83,16 +83,16 @@ Key components:
 
 ## Model files and assets
 
-Large files (model weights, datasets, evaluation outputs) are not included in this repository due to their size. The application resolves them automatically from the `Models/` directory at runtime.
+Large files (model weights, datasets, evaluation outputs) are not included in this repository due to their size. The application resolves them automatically from the `models/` directory at runtime.
 
 Download the four model folders from this Google Drive folder:
 
 https://drive.google.com/drive/folders/1ZMB1I_3Cc35C7hiKsMExzhUH6xYldoSB?usp=drive_link
 
-Place them directly inside `Models/` so the layout looks like this:
+Place them directly inside `models/` so the layout looks like this:
 
 ```
-Models/
+models/
 ├── SEAMaP-Binary-Full/
 ├── SEAMaP-Binary-Full-6/
 ├── SEAMaP-Multi-class-100/
@@ -182,10 +182,10 @@ or bundling it, using the matching `--type`:
 
 ```powershell
 # Binary base:
-python tools/mark_base.py "Models/SEAMaP-Binary-Full/faster_rcnn_R_50_FPN_3x/<timestamp>" --type Binary
+python tools/mark_base.py "models/SEAMaP-Binary-Full/faster_rcnn_R_50_FPN_3x/<timestamp>" --type Binary
 
 # Multiclass base:
-python tools/mark_base.py "Models/SEAMaP-Multi-class-100/faster_rcnn_R_50_FPN_3x/<timestamp>" --type Multiclass
+python tools/mark_base.py "models/SEAMaP-Multi-class-100/faster_rcnn_R_50_FPN_3x/<timestamp>" --type Multiclass
 ```
 
 The marker lives inside the model folder, so it travels with it (e.g. over Google
