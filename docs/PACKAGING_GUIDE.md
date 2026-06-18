@@ -26,6 +26,12 @@ produce a package, you must satisfy the GPU build prerequisites that follow.
 
 ## GPU build prerequisites
 
+Before packaging, the build machine must have the GPU toolchain installed and a
+GPU-ready source environment. Installing CUDA 11.8 and the MSVC toolset, running
+the repair, and choosing Detectron2 architecture coverage are all covered in
+[GPU Build & Repair Setup](GPU_BUILD_SETUP.md). This section covers only what
+packaging itself requires.
+
 ### Build Machine Requirement
 
 The GPU-enabled package must be built on a Windows machine with an NVIDIA GPU.
@@ -50,31 +56,11 @@ The exit code must be `0` and the JSON must meet the
 source of truth for those fields).
 
 If the exit code is not `0`, do not package — the build is GPU-only by design.
-Repair the GPU stack first; see the
-[exit-code table](../README.md#gpu-retraining).
-
-### Detectron2 GPU Architecture Coverage
-
-Detectron2 CUDA kernels are compiled for specific NVIDIA compute capabilities.
-Set `TORCH_CUDA_ARCH_LIST` before compiling Detectron2 so the package supports
-the GPUs expected in the field.
-
-Example only:
-
-```powershell
-$env:TORCH_CUDA_ARCH_LIST = "7.5;8.6;8.9"
-```
-
-Choose the final list from the actual supported hardware fleet. If this is not
-set, the build may only support the GPU installed in the build machine.
-
-After setting the architecture list, rebuild and validate the source runtime:
-
-```powershell
-.\packaging\repair_gpu_env.bat --preflight-only
-.\packaging\repair_gpu_env.bat
-venv\Scripts\python.exe ui\PolyVisionMain.py --diagnose-retraining --require-gpu --json
-```
+Repair the GPU stack first; see
+[GPU Build & Repair Setup](GPU_BUILD_SETUP.md) and the
+[exit-code table](../README.md#gpu-retraining). The Detectron2 architecture
+coverage (`TORCH_CUDA_ARCH_LIST`) that determines which field GPUs the package
+supports is also covered there.
 
 ## Build
 

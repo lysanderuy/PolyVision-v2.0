@@ -136,8 +136,8 @@ code to decide what to do next:
 | Code | Meaning | What to do next |
 |------|---------|-----------------|
 | `0`  | Requested runtime is ready | Proceed — safe to retrain or to package. |
-| `1`  | Retraining unavailable (even CPU is broken) | Repair the source install: [Repair a Source Installation](docs/GPU_RETRAINING_USER_GUIDE.md#repair-a-source-installation). |
-| `2`  | Retraining works, but the `--require-gpu` GPU requirement is not met | **Running from source:** fine — use CPU (drop `--require-gpu`). **Packaging:** rebuild the GPU stack with [`repair_gpu_env.bat`](docs/GPU_RETRAINING_USER_GUIDE.md#repair-a-source-installation), since the build is GPU-only. See [Running from source vs. packaging](docs/PACKAGING_GUIDE.md#running-from-source-vs-packaging). |
+| `1`  | Retraining unavailable (even CPU is broken) | Repair the source install: [Repair a Source Installation](docs/GPU_BUILD_SETUP.md#repair-a-source-installation). |
+| `2`  | Retraining works, but the `--require-gpu` GPU requirement is not met | **Running from source:** fine — use CPU (drop `--require-gpu`). **Packaging:** rebuild the GPU stack with [`repair_gpu_env.bat`](docs/GPU_BUILD_SETUP.md#repair-a-source-installation), since the build is GPU-only. See [Running from source vs. packaging](docs/PACKAGING_GUIDE.md#running-from-source-vs-packaging). |
 
 #### GPU-ready pass criteria
 
@@ -158,11 +158,13 @@ For packaged-user guidance, repairing a broken source install, and the GPU
 packaging/distribution handoff, see the dedicated guides:
 
 - [GPU Retraining User Guide](docs/GPU_RETRAINING_USER_GUIDE.md) — for packaged
-  end-users, plus the source-install repair procedure for administrators and
-  developers.
-- [Packaging Guide](docs/PACKAGING_GUIDE.md) — the build and distribution flow,
-  plus the GPU build prerequisites (`TORCH_CUDA_ARCH_LIST` architecture coverage
-  and the packaged acceptance gate).
+  end-users: what to do when retraining shows a GPU message.
+- [GPU Build & Repair Setup](docs/GPU_BUILD_SETUP.md) — for developers and
+  administrators: installing the CUDA 11.8 / MSVC toolchain, running
+  `repair_gpu_env.bat`, Detectron2 architecture coverage, and validating the
+  runtime before packaging.
+- [Packaging Guide](docs/PACKAGING_GUIDE.md) — the build and distribution flow
+  and the packaged acceptance gate.
 
 ### Base model protection
 

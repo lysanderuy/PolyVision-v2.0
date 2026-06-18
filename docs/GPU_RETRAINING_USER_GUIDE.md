@@ -44,66 +44,8 @@ Send the following:
 
 ## For PolyVision Administrators and Developers
 
-This section applies only to a source installation that is started from Python
-and contains the project `venv` folder. It does not apply to ordinary packaged
-application users.
-
-CUDA Toolkit 11.8/NVCC is required on the technical build or repair computer
-because Detectron2's native GPU extension must be compiled there. End users of
-the packaged application do not compile Detectron2.
-
-### Check Before Repairing
-
-From the project root:
-
-```powershell
-.\packaging\repair_gpu_env.bat --preflight-only
-```
-
-The preflight makes no package changes. It checks:
-
-- The project virtual environment
-- Detectron2 source files
-- A CUDA 11.8-compatible Microsoft C++ compiler
-- CUDA Toolkit 11.8 and NVCC
-- Internet access
-
-Resolve every reported prerequisite before running the repair.
-
-CUDA 11.8 requires an MSVC compiler version below `19.40`. If the preflight
-reports that a newer compiler such as `19.44` is incompatible, open **Visual
-Studio Installer**, modify **Build Tools 2022**, and install the individual
-component **MSVC v143 - VS 2022 C++ x64/x86 build tools (v14.39 - 17.9)**.
-Keep newer toolsets installed; PolyVision will automatically prefer the
-compatible `14.3x` toolset for the Detectron2 build.
-
-### Repair a Source Installation
-
-Close PolyVision, then run:
-
-```powershell
-.\packaging\repair_gpu_env.bat
-```
-
-The repair first builds and validates a replacement Detectron2 wheel in a
-temporary environment. It changes the active virtual environment only after the
-temporary GPU validation succeeds. Restart PolyVision after the repair completes.
-Details are written to `logs/repair_gpu_env.log`.
-
-### Validate Before Packaging
-
-From the project root:
-
-```powershell
-venv\Scripts\python.exe ui\PolyVisionMain.py --diagnose-retraining --require-gpu --json
-```
-
-Do not package or distribute the application unless the command exits with code
-`0` and meets the
-[GPU-ready pass criteria](../README.md#gpu-ready-pass-criteria) (the single
-source of truth for those fields). For what each exit code means and what to do
-next, see the [exit-code table](../README.md#gpu-retraining).
-
-Run the equivalent diagnostic against the packaged executable before giving it
-to users. If it fails, correct and rebuild the application instead of asking the
-user to install CUDA Toolkit or repair Python packages.
+Setting up a GPU build or repair machine — installing CUDA 11.8 and the MSVC
+toolset, running `repair_gpu_env.bat`, and validating the runtime before
+packaging — is covered in the
+[GPU Build & Repair Setup](GPU_BUILD_SETUP.md) guide. That work does not apply to
+packaged-application users and is kept out of this guide on purpose.
