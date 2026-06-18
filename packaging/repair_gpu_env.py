@@ -4,16 +4,19 @@ import argparse
 from pathlib import Path
 import sys
 
-# This module lives in packaging/, so the project root is one level up. Put it on
-# sys.path before importing the ui package so `from ui...` resolves regardless of
-# the current working directory.
+# This module lives in packaging/, so the project root is one level up. Put ui/ on
+# sys.path so the application packages resolve by bare name, the same way they do when
+# running ui/PolyVisionMain.py directly. We deliberately do NOT add the project root,
+# so the bundled detectron2/ source clone there cannot shadow the installed detectron2
+# that the diagnostic must verify.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+UI_DIR = PROJECT_ROOT / "ui"
+if str(UI_DIR) not in sys.path:
+    sys.path.insert(0, str(UI_DIR))
 
-from ui.retraining.runtime.diagnostic_cli import main as diagnostic_main
-from ui.retraining.runtime.gpu_diagnostics import diagnose_gpu_support, format_diagnostic_lines
-from ui.retraining.runtime.repair_preflight import print_repair_preflight, run_repair_preflight
+from retraining.runtime.diagnostic_cli import main as diagnostic_main
+from retraining.runtime.gpu_diagnostics import diagnose_gpu_support, format_diagnostic_lines
+from retraining.runtime.repair_preflight import print_repair_preflight, run_repair_preflight
 
 
 def _remove_project_root_import_shadow() -> None:
