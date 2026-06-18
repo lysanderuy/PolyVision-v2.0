@@ -9,10 +9,18 @@ from typing import Any, Dict, List, Optional
 
 
 GPU_READY = "gpu_ready"
+GPU_INSUFFICIENT_VRAM = "gpu_insufficient_vram"
 HARDWARE_PRESENT_SOFTWARE_MISSING = "hardware_present_software_missing"
 HARDWARE_MISSING = "hardware_missing"
 CUDA_BROKEN = "cuda_broken"
 RETRAINING_RUNTIME_BROKEN = "retraining_runtime_broken"
+
+# A 4 GiB card is the practical floor for Faster R-CNN R50-FPN at the configured
+# batch size and input resolution. Cards report slightly less than their nominal
+# size, so admit anything at or above 3.5 GiB (covers 4 GB-class GPUs) and route
+# smaller cards to CPU instead of letting training start and crash with a CUDA
+# out-of-memory error. Set POLYVISION_ALLOW_SMALL_GPU=1 to bypass this guard.
+MINIMUM_GPU_MEMORY_BYTES = int(3.5 * 1024 ** 3)
 
 
 @dataclass
@@ -30,6 +38,7 @@ class GpuDiagnostic:
     cuda_available: bool = False
     cuda_device_count: int = 0
     cuda_device_name: Optional[str] = None
+    gpu_total_memory_bytes: Optional[int] = None
     detectron2_version: Optional[str] = None
     detectron2_native_available: bool = False
     detectron2_cuda_available: Optional[bool] = None
@@ -54,6 +63,7 @@ class GpuDiagnostic:
             "cuda_available": self.cuda_available,
             "cuda_device_count": self.cuda_device_count,
             "cuda_device_name": self.cuda_device_name,
+            "gpu_total_memory_bytes": self.gpu_total_memory_bytes,
             "detectron2_version": self.detectron2_version,
             "detectron2_native_available": self.detectron2_native_available,
             "detectron2_cuda_available": self.detectron2_cuda_available,
@@ -176,6 +186,7 @@ def _probe_detectron2_native_op(torch_module, device: str = "cpu") -> Optional[s
 
 def diagnose_gpu_support() -> GpuDiagnostic:
     force_cpu = os.getenv("POLYVISION_FORCE_CPU", "").strip().lower() in {"1", "true", "yes", "on"}
+    allow_small_gpu = os.getenv("POLYVISION_ALLOW_SMALL_GPU", "").strip().lower() in {"1", "true", "yes", "on"}
     hardware_present, nvidia_gpus, nvidia_error = _detect_nvidia_gpus()
     errors: List[str] = []
     if nvidia_error:
@@ -203,6 +214,7 @@ def diagnose_gpu_support() -> GpuDiagnostic:
     cuda_available = False
     cuda_device_count = 0
     cuda_device_name = None
+    gpu_total_memory_bytes: Optional[int] = None
 
     try:
         cpu_probe = torch.tensor([1.0], device="cpu")
@@ -248,6 +260,12 @@ def diagnose_gpu_support() -> GpuDiagnostic:
         cuda_device_count = int(torch.cuda.device_count()) if cuda_available else 0
         if cuda_available and cuda_device_count > 0:
             cuda_device_name = torch.cuda.get_device_name(0)
+            try:
+                gpu_total_memory_bytes = int(torch.cuda.get_device_properties(0).total_memory)
+            except Exception:
+                # Fail open: if total memory can't be read, skip the VRAM guard
+                # rather than blocking a GPU that might be perfectly usable.
+                gpu_total_memory_bytes = None
             probe = torch.tensor([1.0], device="cuda")
             _ = probe * 2
             torch.cuda.synchronize()
@@ -305,6 +323,43 @@ def diagnose_gpu_support() -> GpuDiagnostic:
         )
 
     if gpu_ready:
+        gpu_too_small = (
+            gpu_total_memory_bytes is not None
+            and gpu_total_memory_bytes < MINIMUM_GPU_MEMORY_BYTES
+            and not allow_small_gpu
+            and not force_cpu
+        )
+        if gpu_too_small:
+            have_gib = gpu_total_memory_bytes / (1024 ** 3)
+            need_gib = MINIMUM_GPU_MEMORY_BYTES / (1024 ** 3)
+            return GpuDiagnostic(
+                status=GPU_INSUFFICIENT_VRAM,
+                selected_device="cpu",
+                hardware_present=True,
+                retraining_available=True,
+                cpu_ready=True,
+                gpu_ready=False,
+                nvidia_gpus=nvidia_gpus or ([cuda_device_name] if cuda_device_name else []),
+                torch_version=torch_version,
+                torch_cuda_version=torch_cuda_version,
+                torchvision_version=torchvision_version,
+                cuda_available=cuda_available,
+                cuda_device_count=cuda_device_count,
+                cuda_device_name=cuda_device_name,
+                gpu_total_memory_bytes=gpu_total_memory_bytes,
+                detectron2_version=detectron2_version,
+                detectron2_native_available=detectron2_native,
+                detectron2_cuda_available=detectron2_has_cuda,
+                detectron2_cuda_version=detectron2_cuda_version,
+                reason=(
+                    f"GPU has {have_gib:.1f} GiB of memory; retraining needs about "
+                    f"{need_gib:.1f} GiB, so CPU was selected."
+                ),
+                repair_recommended=False,
+                force_cpu=force_cpu,
+                errors=errors,
+            )
+
         selected_device = "cpu" if force_cpu else "cuda"
         reason = "CUDA runtime is available."
         if force_cpu:
@@ -323,6 +378,7 @@ def diagnose_gpu_support() -> GpuDiagnostic:
             cuda_available=cuda_available,
             cuda_device_count=cuda_device_count,
             cuda_device_name=cuda_device_name,
+            gpu_total_memory_bytes=gpu_total_memory_bytes,
             detectron2_version=detectron2_version,
             detectron2_native_available=detectron2_native,
             detectron2_cuda_available=detectron2_has_cuda,
@@ -435,6 +491,8 @@ def format_diagnostic_lines(report: GpuDiagnostic) -> List[str]:
     ]
     if report.cuda_device_name:
         lines.append(f"CUDA device: {report.cuda_device_name}")
+    if report.gpu_total_memory_bytes:
+        lines.append(f"GPU memory: {report.gpu_total_memory_bytes / (1024 ** 3):.1f} GiB")
     if report.nvidia_gpus:
         lines.append(f"NVIDIA hardware: {', '.join(report.nvidia_gpus)}")
     if report.force_cpu:

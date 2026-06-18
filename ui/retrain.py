@@ -25,6 +25,7 @@ from pathlib import Path
 from retraining_runtime import train as retraining_train
 from retraining_runtime.gpu_diagnostics import (
     CUDA_BROKEN,
+    GPU_INSUFFICIENT_VRAM,
     GPU_READY,
     HARDWARE_MISSING,
     HARDWARE_PRESENT_SOFTWARE_MISSING,
@@ -1555,7 +1556,20 @@ class RetrainUI(QDialog):
             "PolyVision cannot use the GPU for retraining, but CPU retraining is available. "
             "CPU retraining may take longer."
         )
-        if policy == CPU_FALLBACK:
+        if report.status == GPU_INSUFFICIENT_VRAM:
+            have_gib = (
+                f"{report.gpu_total_memory_bytes / (1024 ** 3):.1f}"
+                if report.gpu_total_memory_bytes
+                else "too little"
+            )
+            box.setInformativeText(
+                f"This computer's GPU has about {have_gib} GB of memory, but retraining "
+                "needs about 4 GB. Select Continue on CPU to start retraining now. "
+                "CPU retraining works but is slower. This is a hardware limit, not a "
+                "fault: do not install CUDA Toolkit or run repair scripts."
+            )
+            repair_button = None
+        elif policy == CPU_FALLBACK:
             box.setInformativeText(
                 "Select Continue on CPU to start retraining now. "
                 "Do not install CUDA Toolkit or run repair scripts. "
