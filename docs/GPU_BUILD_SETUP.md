@@ -26,6 +26,11 @@ reports a newer compiler (for example `19.43` or `19.44`) as incompatible, open
 (v14.39 - 17.9)"**. Keep any newer toolsets installed; PolyVision automatically
 prefers the compatible `14.3x` toolset for the Detectron2 build.
 
+If Build Tools 2022 is not installed at all, get **Build Tools for Visual Studio
+2022** from the Visual Studio downloads page
+(`visualstudio.microsoft.com/downloads`, under *Tools for Visual Studio*), then
+add the `14.39` component as above.
+
 ### 2. CUDA Toolkit 11.8
 
 Install the **CUDA Toolkit 11.8** from NVIDIA's CUDA 11.8 download archive
