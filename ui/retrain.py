@@ -37,6 +37,7 @@ from retraining_runtime.ui_policy import BLOCKED, CPU_FALLBACK, READY, retrainin
 import cv2
 import time
 from app_paths import models_path, storage_path, user_settings_path, resource_path, app_storage_dir
+from base_marker import is_base_model_dir
 
 BASE_OUTPUT_DIRECTORY = models_path()
 
@@ -456,28 +457,21 @@ class RetrainingThread(QThread):
         Finds the current champion model in the base model directories.
         Returns (model_path, is_base_model) tuple.
         """
-        # Define base model directories and protected base model names
+        # Define base model directory. Base identity comes from a marker file
+        # (see base_marker.is_base_model_dir), NOT from a hardcoded timestamp.
         if self.model_type == 'Binary':
             base_model_dir = models_path("SEAMaP-Binary-Full", "faster_rcnn_R_50_FPN_3x")
-            protected_base_model = "2025-10-01-03-07-35"  # Binary base model
         else:
             base_model_dir = models_path("SEAMaP-Multi-class-100", "faster_rcnn_R_50_FPN_3x")
-            protected_base_model = "2025-10-01-03-54-34"  # Multiclass base model
-        
+
         # Look for any model_final.pth in the base directory (including timestamp subdirectories)
         champion_model = self._find_latest_model_in_paths([base_model_dir])
-        
+
         if champion_model:
-            # Extract the directory name containing the model
             model_dir = os.path.dirname(champion_model)
-            model_dir_name = os.path.basename(model_dir)
-            
-            # Check if this is the protected base model
-            if model_dir_name == protected_base_model:
-                return champion_model, True  # This is the base model
-            else:
-                return champion_model, False  # This is a retrained model
-                
+            is_base = is_base_model_dir(model_dir, self.model_type)
+            return champion_model, is_base
+
         return None, False
 
     def _run_benchmark(self, model_path, run_name):
@@ -2114,23 +2108,23 @@ class RetrainUI(QDialog):
             return
 
         try:
-            # Define base model directory and protected base model names
+            # Define base model directory. The base model is identified by a marker
+            # file (see base_marker.is_base_model_dir), NOT by a hardcoded timestamp.
             if self.model_type == 'Binary':
                 base_model_dir = models_path("SEAMaP-Binary-Full", "faster_rcnn_R_50_FPN_3x")
-                protected_base_model = "2025-10-01-03-07-35"  # Binary base model - NEVER DELETE
             else:
                 base_model_dir = models_path("SEAMaP-Multi-class-100", "faster_rcnn_R_50_FPN_3x")
-                protected_base_model = "2025-10-01-03-54-34"  # Multiclass base model - NEVER DELETE
-            
+
             # Get challenger directory info
             challenger_source_dir = os.path.dirname(challenger_model_path)
             challenger_dir_name = os.path.basename(challenger_source_dir)
-            
+
             self.log_view.append(f"Deploying challenger: {challenger_dir_name}")
-            self.log_view.append(f"Protected base model: {protected_base_model}")
-            
-            # STEP 1: Find and remove old retrained models (excluding challenger and base model)
+
+            # STEP 1: Classify model folders. Keep the challenger and any protected
+            # base model; mark every other previous champion for removal.
             retrained_models_to_remove = []
+            protected_bases = []
             if os.path.exists(base_model_dir):
                 self.log_view.append(f"Scanning directory: {base_model_dir}")
                 for item in os.listdir(base_model_dir):
@@ -2145,11 +2139,12 @@ class RetrainUI(QDialog):
                         self.log_view.append(f"Skipping challenger: {item}")
                         continue
                     
-                    # Skip protected base model
-                    if item == protected_base_model:
+                    # Skip (and keep) any protected base model
+                    if is_base_model_dir(item_path, self.model_type):
+                        protected_bases.append(item)
                         self.log_view.append(f"Skipping protected base model: {item}")
                         continue
-                    
+
                     # Check if it has model_final.pth (valid model directory)
                     model_path = os.path.join(item_path, "model_final.pth")
                     if os.path.exists(model_path):
@@ -2158,6 +2153,20 @@ class RetrainUI(QDialog):
                         self.log_view.append(f"Marked for removal: {item}")
                     else:
                         self.log_view.append(f"Skipping {item} - no model_final.pth")
+
+            # FAIL-SAFE: never delete when no base model can be positively identified.
+            # Without this guard an unrecognized base would fall through to deletion.
+            if not protected_bases:
+                self.log_view.append(
+                    "--- DEPLOYMENT HALTED: No protected base model found. "
+                    "Refusing to delete any models to protect the base. ---")
+                QMessageBox.warning(
+                    self, "Deployment Halted",
+                    "No protected base model could be identified, so no models were "
+                    "removed (this protects your base model from accidental deletion).\n\n"
+                    "Stamp the base model with tools/mark_base.py, then deploy again.\n\n"
+                    "Your newly trained model is saved and is already the active model.")
+                return
             
             # STEP 2: Remove old retrained models
             self.log_view.append(f"Found {len(retrained_models_to_remove)} retrained models to remove")
