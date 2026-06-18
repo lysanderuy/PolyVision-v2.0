@@ -136,14 +136,14 @@ code to decide what to do next:
 
 | Code | Meaning | What to do next |
 |------|---------|-----------------|
-| `0`  | Requested runtime is ready | Proceed — safe to retrain or to package. |
+| `0`  | Requested runtime is ready — *either* fully GPU-ready, *or* the GPU runtime is correctly built but this machine's card has too little VRAM (under ~3.5 GB, status `gpu_insufficient_vram`) so it falls back to CPU | Proceed — safe to retrain or to package. A low-VRAM build machine still produces a GPU-enabled package; the CPU fallback is a per-machine runtime choice, not a property of the build. |
 | `1`  | Retraining unavailable (even CPU is broken) | Repair the source install: [Repair a Source Installation](docs/GPU_BUILD_SETUP.md#repair-a-source-installation). |
 | `2`  | Retraining works, but the `--require-gpu` GPU requirement is not met | **Running from source:** fine — use CPU (drop `--require-gpu`). **Packaging:** rebuild the GPU stack with [`repair_gpu_env.bat`](docs/GPU_BUILD_SETUP.md#repair-a-source-installation), since the build is GPU-only. See [Running from source vs. packaging](docs/PACKAGING_GUIDE.md#running-from-source-vs-packaging). |
 
 #### GPU-ready pass criteria
 
-This is the single source of truth for what "GPU-ready" means. A passing
-`--require-gpu` run (exit code `0`) reports all of:
+This is the single source of truth for what "GPU-ready" means. A **fully
+GPU-ready** runtime reports all of:
 
 - `"status": "gpu_ready"`
 - `"selected_device": "cuda"`
@@ -152,6 +152,15 @@ This is the single source of truth for what "GPU-ready" means. A passing
 - `"gpu_ready": true`
 - `"detectron2_native_available": true`
 - `"detectron2_cuda_available": true`
+
+**Exit code `0` does not require all of these.** `--require-gpu` validates that
+the GPU runtime is correctly built (CUDA present, Detectron2 compiled with CUDA,
+versions matched) — *not* that the build machine is large enough to train. So a
+build machine whose GPU has too little VRAM (under ~3.5 GB) reports
+`"status": "gpu_insufficient_vram"`, `"selected_device": "cpu"`, and
+`"gpu_ready": false`, yet still **exits `0`** and passes the build gate. The
+packaged executable re-runs this diagnostic on each end-user's machine, so a
+field GPU with enough VRAM is still selected for CUDA at runtime.
 
 The packaging and user guides link here rather than restating these fields.
 
