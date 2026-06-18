@@ -37,8 +37,11 @@ models/dev/evaluation_output/
 ui/main_database.db
 ui/retrain_images.db
 ui/retraining_images/
-ui/ASD/
-ui/Test/
+ui/test/
+ui/test/microplastic.db
+
+# User-created session folders (app_paths.sessions_dir -> <project_root>/sessions in dev)
+/sessions/
 ui/widget_screenshot.png
 ui/PolyVisionMain.exe
 
