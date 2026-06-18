@@ -1,10 +1,9 @@
 import sys
-import os
 import cv2
 from PyQt5 import QtCore, QtGui, QtWidgets, QtMultimedia
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QApplication, QMainWindow, QAction, QFileDialog, QInputDialog, QLineEdit, QPushButton, QComboBox
-from app_paths import resource_path
+from app_paths import resource_path, sessions_dir
 
 class NewFileUI(QtWidgets.QDialog): 
     def __init__(self):
@@ -17,6 +16,7 @@ class NewFileUI(QtWidgets.QDialog):
         self.setWindowIcon(QIcon(resource_path("res", "PolyVisionLogo.png")))
 
         layout = QtWidgets.QFormLayout()
+        self.selected_dir = str(sessions_dir())
         self.current_directory = QtWidgets.QLabel("")
         self.update_current_directory_label()
         self.change_directory_button = QtWidgets.QPushButton("Change")
@@ -63,14 +63,13 @@ class NewFileUI(QtWidgets.QDialog):
         self.reject()
 
     def change_path(self):
-        selected_directory = QFileDialog.getExistingDirectory(self, "Select Directory")
+        selected_directory = QFileDialog.getExistingDirectory(self, "Select Directory", self.selected_dir)
         if selected_directory:
-            os.chdir(selected_directory)  # Change the current working directory
-            self.update_current_directory_label() 
+            self.selected_dir = selected_directory
+            self.update_current_directory_label()
 
     def update_current_directory_label(self):
-        current_directory = os.getcwd()  # Get the current working directory
-        self.current_directory.setText(current_directory)
+        self.current_directory.setText(self.selected_dir)
 
     def populate_camera_list(self):
         available_cameras = QtMultimedia.QCameraInfo.availableCameras()

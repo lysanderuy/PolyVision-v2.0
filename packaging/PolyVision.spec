@@ -24,7 +24,7 @@ ui_path = project_root / "ui"
 docs_path = project_root / "docs"
 
 # Data files to include
-# Models/ is NOT bundled here; it stays external next to PolyVision.exe
+# models/ is NOT bundled here; it stays external next to PolyVision.exe
 datas = [
     (str(ui_path / "res"), "res"),
 ]
