@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 import types
 import unittest
@@ -28,9 +29,10 @@ class _FakeTensor:
 
 
 class _FakeCuda:
-    def __init__(self, available: bool, allocation_fails: bool = False):
+    def __init__(self, available: bool, allocation_fails: bool = False, total_memory_bytes: int = 8 * 1024 ** 3):
         self.available = available
         self.allocation_fails = allocation_fails
+        self.total_memory_bytes = total_memory_bytes
 
     def is_available(self):
         return self.available
@@ -41,15 +43,18 @@ class _FakeCuda:
     def get_device_name(self, index):
         return "Test NVIDIA GPU"
 
+    def get_device_properties(self, index):
+        return types.SimpleNamespace(total_memory=self.total_memory_bytes)
+
     def synchronize(self):
         return None
 
 
-def _fake_torch(cuda_available=True, cuda_version="11.8", allocation_fails=False):
+def _fake_torch(cuda_available=True, cuda_version="11.8", allocation_fails=False, total_memory_bytes=8 * 1024 ** 3):
     module = types.ModuleType("torch")
     module.__version__ = "2.0.1+cu118" if cuda_version else "2.0.1+cpu"
     module.version = types.SimpleNamespace(cuda=cuda_version)
-    module.cuda = _FakeCuda(cuda_available, allocation_fails)
+    module.cuda = _FakeCuda(cuda_available, allocation_fails, total_memory_bytes)
     module.float32 = object()
 
     def tensor(values, device="cpu", **kwargs):
@@ -69,6 +74,7 @@ class DiagnosticStateTests(unittest.TestCase):
         cuda_available=True,
         torch_cuda="11.8",
         allocation_fails=False,
+        total_memory_bytes=8 * 1024 ** 3,
         detectron_native=True,
         detectron_cuda=True,
         detectron_cuda_version="11.8",
@@ -77,7 +83,7 @@ class DiagnosticStateTests(unittest.TestCase):
         torchvision_cpu_error=None,
         torchvision_gpu_error=None,
     ):
-        torch_module = _fake_torch(cuda_available, torch_cuda, allocation_fails)
+        torch_module = _fake_torch(cuda_available, torch_cuda, allocation_fails, total_memory_bytes)
 
         def torchvision_probe(_torch, device="cpu"):
             error = torchvision_gpu_error if device == "cuda" else torchvision_cpu_error
@@ -129,6 +135,28 @@ class DiagnosticStateTests(unittest.TestCase):
         report = self.diagnose()
         self.assertEqual(report.status, diagnostics.GPU_READY)
         self.assertTrue(report.gpu_ready)
+        self.assertEqual(report.selected_device, "cuda")
+
+    def test_small_vram_gpu_falls_back_to_cpu(self):
+        report = self.diagnose(total_memory_bytes=2 * 1024 ** 3)
+        self.assertEqual(report.status, diagnostics.GPU_INSUFFICIENT_VRAM)
+        self.assertTrue(report.cpu_ready)
+        self.assertFalse(report.gpu_ready)
+        self.assertTrue(report.retraining_available)
+        self.assertEqual(report.selected_device, "cpu")
+        self.assertEqual(report.gpu_total_memory_bytes, 2 * 1024 ** 3)
+        self.assertFalse(report.repair_recommended)
+
+    def test_sufficient_vram_gpu_selects_gpu(self):
+        report = self.diagnose(total_memory_bytes=8 * 1024 ** 3)
+        self.assertEqual(report.status, diagnostics.GPU_READY)
+        self.assertEqual(report.selected_device, "cuda")
+        self.assertEqual(report.gpu_total_memory_bytes, 8 * 1024 ** 3)
+
+    def test_allow_small_gpu_override_keeps_gpu(self):
+        with patch.dict(os.environ, {"POLYVISION_ALLOW_SMALL_GPU": "1"}):
+            report = self.diagnose(total_memory_bytes=2 * 1024 ** 3)
+        self.assertEqual(report.status, diagnostics.GPU_READY)
         self.assertEqual(report.selected_device, "cuda")
 
     def test_cuda_allocation_failure_falls_back_to_cpu(self):
@@ -201,6 +229,15 @@ class PackagedPolicyTests(unittest.TestCase):
 
     def test_source_gpu_failure_offers_repair_policy(self):
         self.assertEqual(retraining_start_policy(self.report(), frozen=False), REPAIR_OR_CPU)
+
+    def test_insufficient_vram_offers_cpu_fallback_without_repair(self):
+        report = self.report(
+            status=diagnostics.GPU_INSUFFICIENT_VRAM,
+            repair_recommended=False,
+            gpu_total_memory_bytes=2 * 1024 ** 3,
+        )
+        self.assertEqual(retraining_start_policy(report, frozen=False), CPU_FALLBACK)
+        self.assertEqual(retraining_start_policy(report, frozen=True), CPU_FALLBACK)
 
     def test_broken_frozen_runtime_is_blocked(self):
         report = self.report(
