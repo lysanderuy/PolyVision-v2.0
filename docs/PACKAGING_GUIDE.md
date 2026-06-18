@@ -9,21 +9,20 @@ before the build: the source environment must be GPU-ready and validated. The
 GPU build prerequisites below cover that; the Build, Distribution Rules, and
 Packaged Acceptance Gate sections cover the general packaging flow.
 
-## Do you need a GPU build?
+## Running from source vs. packaging
 
-A GPU build lets retraining run on an NVIDIA GPU, but it requires a GPU-ready
-source environment (CUDA Toolkit, a compiled Detectron2, and a CUDA build of
-PyTorch). Setting that up is the bulk of this guide.
+These are two different things with two different requirements:
 
-A **CPU-only build is a valid alternative.** Retraining still works; it is just
-slower. Choose CPU-only if you do not have an NVIDIA build machine, or the target
-GPUs are too weak to be worth the setup.
+- **Running PolyVision from source** does not require a GPU. If the diagnostic
+  passes *without* `--require-gpu` (exit code `0`), retraining works on CPU — just
+  slower. No CUDA setup needed.
+- **Building a distributable package is GPU-only by design.** `build_exe.bat`
+  refuses to package unless the source runtime is GPU-ready, because the shipped
+  `PolyVision.exe` is always GPU-enabled — a single package serves both CPU-only
+  and GPU users in the field (see *Build Machine Requirement* below).
 
-- **GPU build** → continue with *GPU build prerequisites* below.
-- **CPU-only build** → skip to *Build*, and drop `--require-gpu` from every
-  diagnostic command so a CPU runtime counts as passing.
-
-Either way, the source environment must pass its diagnostic before you package.
+So if you only need to run and retrain locally, you can stop here and use CPU. To
+produce a package, you must satisfy the GPU build prerequisites that follow.
 
 ## GPU build prerequisites
 
@@ -50,9 +49,9 @@ The exit code must be `0` and the JSON must meet the
 [GPU-ready pass criteria](../README.md#gpu-ready-pass-criteria) (the single
 source of truth for those fields).
 
-If the exit code is not `0`, do not package. Use the
-[exit-code table](../README.md#gpu-retraining) to decide your next step — repair
-the GPU stack, or switch to a CPU-only build (see below).
+If the exit code is not `0`, do not package — the build is GPU-only by design.
+Repair the GPU stack first; see the
+[exit-code table](../README.md#gpu-retraining).
 
 ### Detectron2 GPU Architecture Coverage
 

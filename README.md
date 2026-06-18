@@ -137,7 +137,7 @@ code to decide what to do next:
 |------|---------|-----------------|
 | `0`  | Requested runtime is ready | Proceed — safe to retrain or to package. |
 | `1`  | Retraining unavailable (even CPU is broken) | Repair the source install: [Repair a Source Installation](docs/GPU_RETRAINING_USER_GUIDE.md#repair-a-source-installation). |
-| `2`  | Retraining works, but the `--require-gpu` GPU requirement is not met | Either rebuild the GPU stack with [`repair_gpu_env.bat`](docs/GPU_RETRAINING_USER_GUIDE.md#repair-a-source-installation), **or** ship CPU-only by dropping `--require-gpu`. See [Do you need a GPU build?](docs/PACKAGING_GUIDE.md#do-you-need-a-gpu-build). |
+| `2`  | Retraining works, but the `--require-gpu` GPU requirement is not met | **Running from source:** fine — use CPU (drop `--require-gpu`). **Packaging:** rebuild the GPU stack with [`repair_gpu_env.bat`](docs/GPU_RETRAINING_USER_GUIDE.md#repair-a-source-installation), since the build is GPU-only. See [Running from source vs. packaging](docs/PACKAGING_GUIDE.md#running-from-source-vs-packaging). |
 
 #### GPU-ready pass criteria
 
