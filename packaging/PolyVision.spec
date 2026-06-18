@@ -23,6 +23,12 @@ project_root = spec_path.parent.parent
 ui_path = project_root / "ui"
 docs_path = project_root / "docs"
 
+# ui/ is the application's import root (its packages are imported by bare name,
+# e.g. `dialogs`, `retraining.runtime`). Put it on sys.path so the collect_submodules
+# calls below can resolve them at spec-evaluation time instead of silently no-opping.
+if str(ui_path) not in sys.path:
+    sys.path.insert(0, str(ui_path))
+
 # Data files to include
 # models/ is NOT bundled here; it stays external next to PolyVision.exe
 datas = [
@@ -138,7 +144,7 @@ exe = EXE(
     strip=False,
     upx=False,
     upx_exclude=upx_exclude,
-    console=True,
+    console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
