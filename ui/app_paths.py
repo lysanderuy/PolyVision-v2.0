@@ -99,17 +99,10 @@ def sessions_dir() -> Path:
     """
     Default parent directory for user-created session folders.
 
+    Frozen : <dist/PolyVision>/sessions/...  (sits next to the exe and models/)
     Dev    : <project_root>/sessions
-    Frozen : <Documents>/PolyVision/sessions  (falls back to %APPDATA%/PolyVision)
     """
-    if not _IS_FROZEN:
-        root = _BASE_PATH.parent / "sessions"
-    else:
-        profile = os.getenv("USERPROFILE")
-        if profile:
-            root = Path(profile) / "Documents" / "PolyVision" / "sessions"
-        else:
-            root = _user_config_dir() / "sessions"
+    root = _exe_dir() / "sessions"
     root.mkdir(parents=True, exist_ok=True)
     return root
 
