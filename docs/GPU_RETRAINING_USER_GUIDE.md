@@ -98,13 +98,11 @@ From the project root:
 venv\Scripts\python.exe ui\PolyVisionMain.py --diagnose-retraining --require-gpu --json
 ```
 
-Do not package or distribute the application unless the command exits
-successfully and reports:
-
-- `"retraining_available": true`
-- `"cpu_ready": true`
-- `"gpu_ready": true`
-- `"detectron2_native_available": true`
+Do not package or distribute the application unless the command exits with code
+`0` and meets the
+[GPU-ready pass criteria](../README.md#gpu-ready-pass-criteria) (the single
+source of truth for those fields). For what each exit code means and what to do
+next, see the [exit-code table](../README.md#gpu-retraining).
 
 Run the equivalent diagnostic against the packaged executable before giving it
 to users. If it fails, correct and rebuild the application instead of asking the

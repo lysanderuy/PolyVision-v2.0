@@ -128,13 +128,31 @@ python ui\PolyVisionMain.py --diagnose-retraining --require-gpu
 
 Note the `ui\` prefix — the diagnostic is launched from the repo root, unlike the
 application itself, which is launched from inside the `ui` directory. Add `--json`
-for machine-readable output. Exit codes:
+for machine-readable output.
 
-| Code | Meaning |
-|------|---------|
-| `0`  | Requested runtime ready |
-| `1`  | Retraining unavailable |
-| `2`  | Available, but the `--require-gpu` requirement is not met |
+The diagnostic only **reports** state — it never changes anything. Use the exit
+code to decide what to do next:
+
+| Code | Meaning | What to do next |
+|------|---------|-----------------|
+| `0`  | Requested runtime is ready | Proceed — safe to retrain or to package. |
+| `1`  | Retraining unavailable (even CPU is broken) | Repair the source install: [Repair a Source Installation](docs/GPU_RETRAINING_USER_GUIDE.md#repair-a-source-installation). |
+| `2`  | Retraining works, but the `--require-gpu` GPU requirement is not met | Either rebuild the GPU stack with [`repair_gpu_env.bat`](docs/GPU_RETRAINING_USER_GUIDE.md#repair-a-source-installation), **or** ship CPU-only by dropping `--require-gpu`. See [Do you need a GPU build?](docs/PACKAGING_GUIDE.md#do-you-need-a-gpu-build). |
+
+#### GPU-ready pass criteria
+
+This is the single source of truth for what "GPU-ready" means. A passing
+`--require-gpu` run (exit code `0`) reports all of:
+
+- `"status": "gpu_ready"`
+- `"selected_device": "cuda"`
+- `"retraining_available": true`
+- `"cpu_ready": true`
+- `"gpu_ready": true`
+- `"detectron2_native_available": true`
+- `"detectron2_cuda_available": true`
+
+The packaging and user guides link here rather than restating these fields.
 
 For packaged-user guidance, repairing a broken source install, and the GPU
 packaging/distribution handoff, see the dedicated guides:
