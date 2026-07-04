@@ -1,16 +1,59 @@
 # PolyVision v2.0
 
-This repository contains the software component of the C.Scope.AI system. C.Scope.AI is an automated imaging system for microplastics sample classification using convolutional neural networks.
+> The core application software of **C.Scope.AI** — an automated imaging system for
+> microplastics sample classification using convolutional neural networks.
 
-PolyVision is the core application software for the full system. It combines:
+## What is C.Scope.AI?
+
+Microplastics — plastic fragments smaller than 5 mm — have become a pervasive
+environmental and health concern, turning up everywhere from ocean trenches to
+mountain summits. Studying them means examining water and sediment samples under a
+microscope and identifying particles by hand: slow, repetitive, and error-prone work.
+
+**C.Scope.AI** automates this process. Developed by the Department of Computer
+Engineering at the **University of San Carlos** in collaboration with the university's
+Biology Department under the ASEAN *Southeast Asia Program on Microplastics*
+(SEA-MaP), it replaces manual microscopy with an automated imaging pipeline that:
+
+- moves the petri dish beneath the microscope on an **automated XY platform**,
+  eliminating the manual back-and-forth between microscope and camera;
+- captures microscope imagery through an integrated camera and software workflow; and
+- classifies microplastic samples using a **convolutional neural network (CNN)**.
+
+The result significantly reduces the tedious, strenuous work faced by SEA-MaP
+researchers and streamlines microplastic identification end to end.
+
+![Overall system of C.Scope.AI](public/SystemOverview.png)
+
+*Figure 1. The overall C.Scope.AI system — the automated XY imaging platform,
+microscope and camera, and the PolyVision software with integrated AI.*
+
+The first iteration proved the concept, reaching **91% classification accuracy**, but
+had clear limits: a costly, over-specialized XY platform that could not adapt to
+existing microscopes; a fragmented software application weighed down by external
+dependencies and difficult to set up without the development team; and a monolithic
+model that could not learn from new data. **Version 2** redesigns the hardware and
+software architecture to adapt to a wider range of microscopes, simplifies setup for
+non-technical end users, and adds a **local retraining pipeline** so the model can be
+improved on the user's own machine — broadening the system's reach beyond SEA-MaP
+alone.
+
+## PolyVision — the software
+
+PolyVision is the software component of C.Scope.AI and the focus of this repository. It
+is a Windows desktop application that unifies image capture, hardware control, model
+inference, and retraining into a single package — the simplified, dependency-light
+successor to the fragmented v1 software.
+
+![PolyVision desktop application](public/PolyVision.png)
+
+*Figure 2. The PolyVision v2.0 desktop application.*
+
+It combines:
 
 - The desktop application and workflow management
 - GRBL-based control of the automated XY imaging platform
 - A retrainable AI/ML pipeline for model inference and continuous learning
-
-## Overview
-
-PolyVision v2.0 is a Windows desktop application for microplastic detection and analysis. It integrates image capture, hardware control, model inference, and retraining support into a single software package.
 
 Key components:
 
