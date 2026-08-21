@@ -101,6 +101,7 @@ Key components:
 3. Clone Detectron2:
 
    ```powershell
+   cd .\PolyVision-v2.0\
    git clone https://github.com/facebookresearch/detectron2.git
    ```
 
