@@ -20,40 +20,43 @@ dist/
 .idea/
 
 # Trained model weights (large binary files)
-Models/SEAMaP-Binary-Full/
-Models/SEAMaP-Binary-Full-6/
-Models/SEAMaP-Multi-class-100/
-Models/SEAMaP-Multi-class-100-1/
+models/SEAMaP-Binary-Full/
+models/SEAMaP-Binary-Full-6/
+models/SEAMaP-Multi-class-100/
+models/SEAMaP-Multi-class-100-1/
 
 # Retraining datasets (large image collections)
-Models/Retraining/original_datasets/
+models/retraining/original_datasets/
+models/retraining_images/
+models/retraining_data/
 
 # Evaluation artifacts
-Models/dev/evaluation_output/
+models/dev/evaluation_output/
 
 # User databases and runtime-generated data
-UI/main_database.db
-UI/retrain_images.db
-UI/retrainingImages/
-UI/widget_screenshot.png
-UI/PolyVisionMain.exe
+ui/main_database.db
+ui/retrain_images.db
+ui/retraining_images/
+ui/test/
+ui/test/microplastic.db
+
+# User-created session folders (app_paths.sessions_dir -> <project_root>/sessions in dev)
+/sessions/
+ui/widget_screenshot.png
+ui/PolyVisionMain.exe
 
 # Generated/misc files
-Models/dev/visualization.jpg
-Models/dev/codes_used.txt
+models/dev/visualization.jpg
+models/dev/codes_used.txt
 
 # Detectron2 (clone separately: https://github.com/facebookresearch/detectron2)
 detectron2/
+
+# Runtime logs (e.g. packaging/repair_gpu_env.bat writes logs/repair_gpu_env.log)
+logs/
 
 # Misc
 *.log
 *.tmp
 Thumbs.db
 .DS_Store
-
-# Build files
-build_exe.bat
-setup_build.bat
-PolyVision.spec
-UI/PolyVisionMain.spec
-build_requirements.txt
