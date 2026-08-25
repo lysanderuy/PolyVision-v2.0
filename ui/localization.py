@@ -8,6 +8,7 @@ import time
 import threading
 from PIL import Image
 from app_paths import user_settings_path
+from settings_store import load_settings, save_settings
 
 # GLOBAL VARIABLES FOR MODEL MANAGEMENT
 GLOBAL_BINARY_DETECTOR = None
@@ -124,11 +125,8 @@ def get_current_detector():
 
 def get_model_type_from_settings():
     try:
-        settings_file = user_settings_path()
-        if os.path.exists(settings_file):
-            with open(settings_file, 'r') as f:
-                settings = json.load(f)
-                return settings.get("general_features", {}).get("model", "Binary")
+        settings = load_settings()
+        return settings.get("general_features", {}).get("model", "Binary")
     except Exception as e:
         print(f"Could not read settings, using Binary model: {e}")
     return "Binary"
@@ -287,18 +285,14 @@ def switch_model(new_model_type):
     # Update settings file
     try:
         settings_file = user_settings_path()
-        settings = {}
-        if os.path.exists(settings_file):
-            with open(settings_file, 'r') as f:
-                settings = json.load(f)
+        settings = load_settings(settings_file)
 
         if "general_features" not in settings:
             settings["general_features"] = {}
 
         settings["general_features"]["model"] = new_model_type
 
-        with open(settings_file, 'w') as f:
-            json.dump(settings, f, indent=4)
+        save_settings(settings, settings_file)
         
         print(f"Switched to {new_model_type} model (will load on demand if needed)")
         return True

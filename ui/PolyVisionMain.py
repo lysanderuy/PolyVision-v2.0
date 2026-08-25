@@ -37,6 +37,8 @@ from dialogs.okay_message_box import *
 from inference.detect import DetectUI
 from hardware.grbl import GrblUI
 from app_paths import user_settings_path, resource_path, app_storage_dir, models_path
+from settings_store import load_settings, save_settings
+from grbl_motion import axis_word
 from inference.live_detect import *
 from hardware.calibration_ui import CalibrateUI
 from hardware.coordinate_ui import CoordinateUI
@@ -109,8 +111,7 @@ class Ui_MainWindow(QMainWindow):
         self.currentMP = 0
         self.widthClicked = None
         self.lengthClicked = None
-        with open(user_settings_path(), "r") as f:
-                self.settings_data = json.load(f)
+        self.settings_data = load_settings()
         self.image_settings = self.settings_data.get("image_settings", {})
         self.grbl_settings = self.settings_data.get("grbl_settings", {})
         self.general_settings = self.settings_data.get("general_features", {})
@@ -508,8 +509,7 @@ class Ui_MainWindow(QMainWindow):
                     self.settings.show()
                 # Update settings_data dictionary
                 self.settings_data["image_settings"] = self.image_settings
-                with open(user_settings_path(), "w") as f:
-                    json.dump(self.settings_data, f, indent=4)
+                save_settings(self.settings_data)
                 self.calibrating = False
                 self.stopMeasureLength()
             except ValueError:
@@ -518,8 +518,7 @@ class Ui_MainWindow(QMainWindow):
             settings_file = user_settings_path()
             settings_data = {}
             if os.path.exists(settings_file):
-                with open(settings_file, "r") as f:
-                    settings_data = json.load(f)
+                settings_data = load_settings(settings_file)
         else:
             self.stopMeasureLength()
             
@@ -614,22 +613,21 @@ class Ui_MainWindow(QMainWindow):
 
     def refreshSettings(self):
         previous_model_type = getattr(self, "current_model_type", self.current_model_type)
-        with open(user_settings_path(), "r") as f:
-                self.settings_data = json.load(f)
-                self.image_settings = self.settings_data.get("image_settings", {})
-                self.grbl_settings = self.settings_data.get("grbl_settings", {})
-                self.general_settings = self.settings_data.get("general_features", {})
-                new_model_type = self.general_settings.get("model", "Binary")
-                if new_model_type == "Binary":
-                    self.model_port = 0
-                else:
-                    self.model_port = 1
+        self.settings_data = load_settings()
+        self.image_settings = self.settings_data.get("image_settings", {})
+        self.grbl_settings = self.settings_data.get("grbl_settings", {})
+        self.general_settings = self.settings_data.get("general_features", {})
+        new_model_type = self.general_settings.get("model", "Binary")
+        if new_model_type == "Binary":
+            self.model_port = 0
+        else:
+            self.model_port = 1
         self.current_model_type = new_model_type
         if new_model_type != previous_model_type:
             print(f"Model selection changed from {previous_model_type} to {new_model_type}.")
             if hasattr(self, "_host_mainwindow") and self._host_mainwindow is not None:
                 self._host_mainwindow.handle_model_selection_change(new_model_type)
-   
+
     def goToCurrentImages(self):
         self.paused = True
         self.images = ImagesUI(self.file_name)
@@ -882,12 +880,15 @@ class Ui_MainWindow(QMainWindow):
         rows = self.coordinates.distance_y
         cols = self.coordinates.distance_x
         if start_x is not None and start_y is not None:
-            self.autoScanning = AutoScan(self.ser, start_x, start_y, rows, cols)
+            inverted_feed = self.grbl_settings.get("area_scan", True)
+            feedrate = self.grbl_settings.get("max_feedrate", 1000)
+            self.autoScanning = AutoScan(self.ser, start_x, start_y, rows, cols, inverted_feed, feedrate)
             self.totalScan = rows * cols
-            self.autoScanning.start()
             self.autoScanning.ImageScan.connect(self.scanForMP)
             self.autoScanning.Homing.connect(self.homingPrompt)
             self.autoScanning.Finished.connect(self.finishedScan)
+            self.autoScanning.Error.connect(self.handleGrblError)
+            self.autoScanning.start()
 
     def startFocusing(self):   
         self.autoFocusing = AutoFocus(self.ser,self.image_queue,self.zValue)
@@ -1244,21 +1245,54 @@ class Ui_MainWindow(QMainWindow):
         if result == QDialog.Accepted:
             self.autoScanning.event.set()
 
+    def handleGrblError(self, message):
+        if self.autoScanning is not None:
+            self.autoScanning.stop()
+        self.paused = False
+        self.statusValue.setText("GRBL alarm - home required")
+        self.detectionValue.setText("OFF")
+        self.scanBTN.setText("Scan")
+        self._restoreScanControls()
+
+        dialog = QMessageBox(self)
+        dialog.setIcon(QMessageBox.Critical)
+        dialog.setWindowTitle("GRBL Error")
+        dialog.setText("GRBL reported an alarm or error. Position is no longer trusted.")
+        dialog.setInformativeText(f"{message}\n\nHome the machine before scanning or calibration.")
+        unlock_home = dialog.addButton("Unlock + Home", QMessageBox.AcceptRole)
+        dialog.addButton("Cancel", QMessageBox.RejectRole)
+        dialog.exec_()
+
+        if dialog.clickedButton() == unlock_home and self.ser:
+            try:
+                self.ser.write(b"$X\r\n")
+                time.sleep(0.5)
+                self.moveHome()
+                self.statusValue.setText("Homing")
+            except Exception as e:
+                self.statusValue.setText("GRBL alarm - home required")
+                print(f"Failed to unlock/home after GRBL error: {e}")
+
+    def _restoreScanControls(self):
+        self.connectGRBL.setEnabled(True)
+        self.grblUP.setEnabled(True)
+        self.grblDOWN.setEnabled(True)
+        self.grblLEFT.setEnabled(True)
+        self.grblRIGHT.setEnabled(True)
+        self.grblzUP.setEnabled(True)
+        self.grblzDOWN.setEnabled(True)
+        self.focusBTN.setEnabled(True)
+        self.grblHOME.setEnabled(True)
+        self.emergencyGRBL.setEnabled(True)
+        self.scanButton.setEnabled(True)
+        self.scanButton.setVisible(False)
+
     def finishedScan(self):
         self.progressBar.setProperty("value", 0)
         self.currentScan = 0
         self.totalScan = 0
         self.paused = False #unpause
-        self.connectGRBL.setEnabled(True)
-        self.grblUP.setEnabled(True)
-        self.grblDOWN.setEnabled(True )
-        self.grblLEFT.setEnabled(True )
-        self.grblRIGHT.setEnabled(True )
-        self.grblzUP.setEnabled(True )
-        self.grblzDOWN.setEnabled(True )
-        self.focusBTN.setEnabled(True )
-        self.grblHOME.setEnabled(True)
-        self.scanButton.setVisible(False)
+        self._restoreScanControls()
         self.statusValue.setText("Idle")
         self.detectionValue.setText("OFF")
         verify = VerificationBox("Do you want to rescan?")
@@ -2259,15 +2293,42 @@ class AutoScan(QThread):
     ImageScan = pyqtSignal()
     Homing = pyqtSignal()
     Finished = pyqtSignal()
-    def __init__(self,serial, start_x, start_y, rows, cols):
+    Error = pyqtSignal(str)
+    def __init__(self, serial, start_x, start_y, rows, cols, inverted_feed=True, feedrate=1000):
         super().__init__()
         self.ser = serial
         self.start_x = start_x
         self.start_y = start_y * (-1)
         self.rows = rows
-        self.cols = cols 
+        self.cols = cols
+        self.inverted_feed = inverted_feed
+        self.feedrate = feedrate
         self.x = 0
         self.y = 0
+
+    def move_command(self, axis, distance):
+        return f"G21 G91 G1 {axis_word(axis, distance, self.inverted_feed)} F{self.feedrate}\r\n"
+
+    def write_move(self, axis, distance):
+        self.ser.write(self.move_command(axis, distance).encode("utf-8"))
+
+    def wait_after_move(self, seconds):
+        time.sleep(seconds)
+        self.raise_for_controller_alarm()
+
+    def raise_for_controller_alarm(self):
+        try:
+            waiting = getattr(self.ser, "in_waiting", 0)
+        except Exception:
+            waiting = 0
+        if not waiting:
+            return
+        response = self.ser.read(waiting).decode("utf-8", errors="ignore").strip()
+        if not response:
+            return
+        normalized = response.upper()
+        if "ALARM" in normalized or "ERROR" in normalized:
+            raise RuntimeError(response)
 
     def run(self):
         self.ThreadActive = True
@@ -2275,65 +2336,61 @@ class AutoScan(QThread):
         while self.ThreadActive:
             try:
                 self.ser.write(b"$H\r\n")
-                time.sleep(5)
+                self.wait_after_move(5)
                 self.Homing.emit()
-                self.event.wait()  
+                self.event.wait()
                 if self.event.is_set():
                     self.event.clear()
-                #================= START AUTOMATED SCAN ================#
-                string = "G21 G91 G1 X" 
-                string += str(-(abs(self.start_x)+3.0)) + " F1000\r\n"
-                toSend = string.encode('utf-8')
-                self.ser.write(toSend)
+                # Start scan path
+                self.write_move("X", abs(self.start_x) + 3.0)
                 self.x -= self.start_x
-                time.sleep((self.start_x/7*-1)+1)
-                string = "G21 G91 G1 Y" 
-                string += str(self.start_y) + " F1000\r\n"
-                toSend = string.encode('utf-8')
-                self.ser.write(toSend)
+                self.wait_after_move((self.start_x / 7 * -1) + 1)
+                self.write_move("Y", self.start_y)
                 self.y += self.start_y
-                time.sleep((self.start_y/6.5)+1)
+                self.wait_after_move((self.start_y / 6.5) + 1)
 
-                #loop while petridish is unscanned
+                # Scan selected area
                 for rows in range(int(self.rows)):
                     self.ImageScan.emit()
-                    self.event.wait()  
+                    self.event.wait()
                     if self.event.is_set():
                         self.event.clear()
-                    for cols in range(int(self.cols)): 
+                    for cols in range(int(self.cols)):
                         if cols < self.cols - 1:
-                            if rows%2 == 0:
-                                self.ser.write(b"G21 G91 G1 X-5 F1000\r\n")
+                            if rows % 2 == 0:
+                                self.write_move("X", 5)
                                 self.x += 5
-                                time.sleep(3)
+                                self.wait_after_move(3)
                             else:
-                                self.ser.write(b"G21 G91 G1 X5 F1000\r\n")
+                                self.write_move("X", -5)
                                 self.x -= 5
-                                time.sleep(3)
+                                self.wait_after_move(3)
                             self.ImageScan.emit()
-                            self.event.wait()  
+                            self.event.wait()
                             if self.event.is_set():
                                 self.event.clear()
 
-                    if rows < self.rows - 1:  # Only move down if it's not the last row
-                        self.ser.write(b"G21 G91 G1 Y3 F1000\r\n")
+                    if rows < self.rows - 1:
+                        self.write_move("Y", 3)
                         self.y += 3
-                        time.sleep(3)                    
+                        self.wait_after_move(3)
 
                 self.ser.write(b"$H\r\n")
+                self.wait_after_move(5)
 
                 self.Homing.emit()
-                self.event.wait()  
+                self.event.wait()
                 if self.event.is_set():
                     self.event.clear()
 
                 self.Finished.emit()
-                self.event.wait()  
+                self.event.wait()
                 if self.event.is_set():
                     self.event.clear()
                 self.ThreadActive = False
-            except:
-                pass
+            except Exception as e:
+                self.Error.emit(str(e))
+                self.ThreadActive = False
 
 
     def stop(self):

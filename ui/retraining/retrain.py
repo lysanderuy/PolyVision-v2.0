@@ -38,6 +38,7 @@ from retraining.runtime.ui_policy import BLOCKED, CPU_FALLBACK, READY, retrainin
 import cv2
 import time
 from app_paths import models_path, storage_path, user_settings_path, resource_path, app_storage_dir
+from settings_store import load_settings, save_settings
 from retraining.base_marker import is_base_model_dir
 
 BASE_OUTPUT_DIRECTORY = models_path()
@@ -887,10 +888,10 @@ class RetrainUI(QDialog):
 
     def _read_current_model_type(self):
         try:
-            with open(user_settings_path(), "r") as f:
-                settings_data = json.load(f)
-                return settings_data.get("general_features", {}).get("model", "Binary")
-        except (FileNotFoundError, json.JSONDecodeError): return "Binary"
+            settings_data = load_settings()
+            return settings_data.get("general_features", {}).get("model", "Binary")
+        except Exception:
+            return "Binary"
 
     def init_ui(self):
         self.setWindowTitle(f"Retrain Model ({self.model_type})")
@@ -1664,12 +1665,10 @@ class RetrainUI(QDialog):
         
         if reply == QMessageBox.Yes:
             try:
-                with open(user_settings_path(), "r+") as f:
-                    settings_data = json.load(f)
-                    settings_data["general_features"]["model"] = self.model_type
-                    f.seek(0)
-                    json.dump(settings_data, f, indent=4)
-                    f.truncate()
+                settings_path = user_settings_path()
+                settings_data = load_settings(settings_path)
+                settings_data["general_features"]["model"] = self.model_type
+                save_settings(settings_data, settings_path)
                 self.settings_updated.emit()
             except Exception as e:
                 self.log_view.append(f"Warning: Could not save setting to user_settings.json. {e}")

@@ -13,6 +13,7 @@ from PyQt5.uic import loadUi
 import json
 import webbrowser
 from app_paths import user_settings_path, resource_path
+from settings_store import default_settings, load_settings, save_settings
 
 class SettingsUI(QDialog):
     calibration_clicked = pyqtSignal()
@@ -327,18 +328,13 @@ class SettingsUI(QDialog):
 
 
     def setDefaultSettings(self, default_file_path):
-        default_settings_data = {}  # Default settings data
-
-        if os.path.exists(default_file_path):
-            with open(default_file_path, "r") as f:
-                default_settings_data = json.load(f)
+        default_settings_data = default_settings()
 
         # Apply default settings to the UI
-        self.readSettings(default_file_path)
+        self.applySettingsToUi(default_settings_data)
 
         # Update the settings file with the default settings
-        with open(user_settings_path(), "w") as f:
-            json.dump(default_settings_data, f, indent=4)
+        save_settings(default_settings_data)
 
     def calibration(self):
         self.calibration_clicked.emit()
@@ -347,11 +343,7 @@ class SettingsUI(QDialog):
     def applySettings(self):
 
         settings_file = user_settings_path()
-        settings_data = {}
-
-        if os.path.exists(settings_file):
-            with open(settings_file, "r") as f:
-                settings_data = json.load(f)
+        settings_data = load_settings(settings_file)
 
         # Update the image_settings dictionary with the new image_quality
         image_settings = settings_data.get("image_settings", {})
@@ -400,8 +392,7 @@ class SettingsUI(QDialog):
         settings_data["grbl_settings"] = grbl_settings
         settings_data["general_features"] = general_features
 
-        with open(settings_file, "w") as f:
-            json.dump(settings_data, f, indent=4)
+        save_settings(settings_data, settings_file)
 
         self.apply_clicked.emit()
         
@@ -414,53 +405,58 @@ class SettingsUI(QDialog):
     def readSettings(self, file_path):
 
         if os.path.exists(file_path):
-            with open(file_path, "r") as f:
-                settings_data = json.load(f)
+            try:
+                settings_data = load_settings(file_path)
+            except Exception as e:
+                print(f"Error reading settings: {e}")
+                settings_data = default_settings()
+            self.applySettingsToUi(settings_data)
 
-                # Image Settings
-                image_settings = settings_data.get("image_settings", {})
-                image_quality = image_settings.get("image_quality")
-                if image_quality:
-                    index = self.resolution_dropbox.findText(image_quality)
-                    if index != -1:
-                        self.resolution_dropbox.setCurrentIndex(index)
+    def applySettingsToUi(self, settings_data):
 
-                image_sharpness = image_settings.get("image_sharpness")
-                if image_sharpness is not None:
-                    self.sharpness_balance_slider.setValue(image_sharpness)
+        # Image Settings
+        image_settings = settings_data.get("image_settings", {})
+        image_quality = image_settings.get("image_quality")
+        if image_quality:
+            index = self.resolution_dropbox.findText(image_quality)
+            if index != -1:
+                self.resolution_dropbox.setCurrentIndex(index)
 
-                image_saturation = image_settings.get("image_saturation")
-                if image_saturation is not None:
-                    self.saturation_balance_slider.setValue(image_saturation)
+        image_sharpness = image_settings.get("image_sharpness")
+        if image_sharpness is not None:
+            self.sharpness_balance_slider.setValue(image_sharpness)
+
+        image_saturation = image_settings.get("image_saturation")
+        if image_saturation is not None:
+            self.saturation_balance_slider.setValue(image_saturation)
 
 
-                # GRBL settings
-                grbl_settings = settings_data.get("grbl_settings", {})
+        # GRBL settings
+        grbl_settings = settings_data.get("grbl_settings", {})
 
-                steps_per_mm = grbl_settings.get("steps_per_mm")
-                if steps_per_mm is not None:
-                    self.steps_line_edit.setText(str(steps_per_mm))
+        steps_per_mm = grbl_settings.get("steps_per_mm")
+        if steps_per_mm is not None:
+            self.steps_line_edit.setText(str(steps_per_mm))
 
-                max_feedrate = grbl_settings.get("max_feedrate")
-                if max_feedrate is not None:
-                    self.feed_line_edit.setText(str(max_feedrate))
+        max_feedrate = grbl_settings.get("max_feedrate")
+        if max_feedrate is not None:
+            self.feed_line_edit.setText(str(max_feedrate))
 
-                area_scan = grbl_settings.get("area_scan")
-                if area_scan is not None:
-                    self.scan_overlay_checkbox.setChecked(area_scan)
+        area_scan = grbl_settings.get("area_scan")
+        if area_scan is not None:
+            self.scan_overlay_checkbox.setChecked(area_scan)
 
-                # Read general features
-                general_features = settings_data.get("general_features", {})
-                #theme
-                theme = general_features.get("model")
-                if theme:
-                    index = self.theme_dropbox.findText(theme)
-                    if index != -1:
-                        self.theme_dropbox.setCurrentIndex(index)
-                #sound
-                sound = general_features.get("sound", True)
-                self.sound_checkbox.setChecked(sound)
-
+        # Read general features
+        general_features = settings_data.get("general_features", {})
+        #theme
+        theme = general_features.get("model")
+        if theme:
+            index = self.theme_dropbox.findText(theme)
+            if index != -1:
+                self.theme_dropbox.setCurrentIndex(index)
+        #sound
+        sound = general_features.get("sound", True)
+        self.sound_checkbox.setChecked(sound)
 def main():
     app = QApplication(sys.argv)
     settings_ui = SettingsUI()
